@@ -61,8 +61,16 @@ void* kmalloc(unsigned int size)
 	//TODO: [PROJECT'25.GM#2] KERNEL HEAP - #1 kmalloc
 	//Your code is here
 	//Comment the following line
-	kpanic_into_prompt("kmalloc() is not implemented yet...!!");
-
+	
+	if(size <= DYN_ALLOC_MAX_BLOCK_SIZE) {
+		// block area 
+		return alloc_block(size);
+	}
+	else {
+		// custom fit 
+		kpanic_into_prompt("kmalloc() is not implemented yet...!!");
+		
+	}
 	//TODO: [PROJECT'25.BONUS#3] FAST PAGE ALLOCATOR
 }
 
@@ -112,7 +120,7 @@ unsigned int kheap_physical_address(unsigned int virtual_address)
 	uint32 pdx = ptr_page_directory[PDX(virtual_address)];
 	if(!(pdx & PERM_PRESENT))
 		return 0;
-	uint32* page_table = (uint32*) STATIC_KERNEL_PHYSICAL_ADDRESS(EXTRACT_ADDRESS(pdx));
+	uint32* page_table = (uint32*) STATIC_KERNEL_VIRTUAL_ADDRESS(EXTRACT_ADDRESS(pdx));
 	uint32 ptx = page_table[PTX(virtual_address)];
 	if(!(ptx & PERM_PRESENT))
 		return 0;
