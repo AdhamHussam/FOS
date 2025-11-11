@@ -54,7 +54,6 @@ void initialize_dynamic_allocator(uint32 daStart, uint32 daEnd)
     int ps = PAGE_SIZE;
     int page_info_array_size = DYN_ALLOC_MAX_SIZE/ps;
     for(int i=0;i<page_info_array_size;i++){
-
         pageBlockInfoArr[i].block_size = 0;
         pageBlockInfoArr[i].num_of_free_blocks = 0;
         LIST_INSERT_TAIL(&freePagesList, &pageBlockInfoArr[i]);

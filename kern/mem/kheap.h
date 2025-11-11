@@ -28,6 +28,15 @@ static inline void set_kheap_strategy(uint32 strategy){kheapPlacementStrategy = 
 static inline uint32 get_kheap_strategy(){return kheapPlacementStrategy ;}
 
 //***********************************
+
+struct PageChunkNode
+{
+    uint32 start;
+    uint32 num_of_pages; 
+    struct PageChunkNode *parent_size, *left_size, *right_size;
+    struct PageChunkNode *parent_addr, *left_addr, *right_addr;
+};
+
 struct PageChunk
 {
     uint32 start;      // The starting virtual address of the hole
@@ -38,6 +47,12 @@ struct PageChunk
 // The head of the free list
 LIST_HEAD(PageChunk_List, PageChunk);
 extern struct PageChunk_List kheap_page_free_list;
+
+// fast lists ( trees )
+// Root of the tree ordered by num_of_pages
+extern struct PageChunkNode* kheap_free_tree_by_size;
+// Root of the tree ordered by start address
+extern struct PageChunkNode* kheap_free_tree_by_addr;
 //***********************************
 void kheap_init();
 

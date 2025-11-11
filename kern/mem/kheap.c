@@ -6,9 +6,12 @@
 #include <kern/mem/memory_manager.h>
 #include "../conc/kspinlock.h"
 #include <inc/queue.h>
+#include "kheap_bst.h"
 
 struct PageChunk_List kheap_page_free_list;
-
+// trees
+struct PageChunkNode* kheap_free_tree_by_size = NULL;
+struct PageChunkNode* kheap_free_tree_by_addr = NULL;
 //==================================================================================//
 //============================== GIVEN FUNCTIONS ===================================//
 //==================================================================================//
@@ -32,6 +35,8 @@ void kheap_init()
 	//==================================================================================
 	//==================================================================================
 	LIST_INIT(&kheap_page_free_list);
+	kheap_free_tree_by_size = NULL;
+	kheap_free_tree_by_addr = NULL;
 }
 
 //==============================================
@@ -59,6 +64,64 @@ void return_page(void* va)
 //===================================
 // [1] ALLOCATE SPACE IN KERNEL HEAP:
 //===================================
+
+// FAST KMALLOC USING BST INSERTIONS AND EXACT AND MAX SELECTIONS
+static void* kmalloc_page_allocator_fast(unsigned int size)
+{
+    uint32 pages_needed = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+
+	// 1 Exact 
+    struct PageChunkNode* found = bst_find_exact_fit(pages_needed);
+	
+	// 2 Worst
+    if (found == NULL) 
+	    found = bst_find_worst_fit(pages_needed);
+    
+    if (found != NULL) {
+        void* allocate_from = (void*)found->start;
+
+        bst_remove_by_size(found);
+        bst_remove_by_addr(found);
+
+        if (found->num_of_pages > pages_needed) {
+            found->start += (pages_needed * PAGE_SIZE);
+            found->num_of_pages -= pages_needed;
+    
+            bst_insert_by_size(found);
+            bst_insert_by_addr(found);
+        }
+        else {
+            free_block(found);
+        }
+
+        for (uint32 i = 0; i < pages_needed; i++) {
+            uint32 va = (uint32)allocate_from + (i * PAGE_SIZE);
+            int ret = alloc_page(ptr_page_directory, va, PERM_WRITEABLE, 1);
+            if (ret == E_NO_MEM) panic("kmalloc_fast: Out of physical memory!");
+        }
+        return allocate_from;
+    }
+    
+    // 3 Extend the Break
+    if (kheapPageAllocBreak + (pages_needed * PAGE_SIZE) <= KERNEL_HEAP_MAX) {
+        void* ptr = (void*) kheapPageAllocBreak;
+        for (uint32 i = 0; i < pages_needed; i++) {
+            uint32 va = kheapPageAllocBreak + (i * PAGE_SIZE);
+            int ret = alloc_page(ptr_page_directory, va, PERM_WRITEABLE, 1);
+            if (ret == E_NO_MEM) {
+                for (uint32 j = 0; j < i; j++) {
+                    unmap_frame(ptr_page_directory, kheapPageAllocBreak + (j * PAGE_SIZE));
+                }
+                return NULL;
+            }
+        }
+        kheapPageAllocBreak += (pages_needed * PAGE_SIZE);
+        return ptr;
+    }
+
+    // 4 
+    return NULL;
+}
 static void* kmalloc_page_allocator(unsigned int size)
 {
     uint32 pages_needed = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
@@ -125,6 +188,7 @@ static void* kmalloc_page_allocator(unsigned int size)
 	// 4
     return NULL;
 }
+
 
 void* kmalloc(unsigned int size)
 {

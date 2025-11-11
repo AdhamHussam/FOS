@@ -39,6 +39,7 @@ KERN_SRCFILES :=	kern/entry.S \
 			kern/mem/paging_helpers.c \
 			kern/mem/working_set_manager.c \
 			kern/mem/chunk_operations.c \
+			kern/mem/kheap_bst.c \
 			kern/proc/user_environment.c \
 			kern/proc/priority_manager.c \
 			kern/proc/user_programs.c  \
@@ -64,6 +65,7 @@ KERN_SRCFILES :=	kern/entry.S \
 			lib/string.c \
 			lib/disk.c \
 			lib/dynamic_allocator.c \
+
 
 
 
