@@ -138,6 +138,6 @@ void *realloc_block(void* va, uint32 new_size)
 	//Comment the following line
 	// is this kareems or our function ?
 	// ours
-	//EL7OKOOOMA
+	//EL7OKOOOM
 	panic("realloc_block() Not implemented yet");
 }
