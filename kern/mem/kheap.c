@@ -85,9 +85,17 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 	//TODO: [PROJECT'25.GM#2] KERNEL HEAP - #3 kheap_virtual_address
 	//Your code is here
 	//Comment the following line
-	panic("kheap_virtual_address() is not implemented yet...!!");
-
-	/*EFFICIENT IMPLEMENTATION ~O(1) IS REQUIRED */
+	// panic("kheap_virtual_address() is not implemented yet...!!");
+	
+	/*EFFICIENT IMPLEMENTATION ~O(1) IS REQUIRED */	
+	struct FrameInfo *ptr_frame_info = to_frame_info(physical_address);
+	if(ptr_frame_info->references == 0) 
+		return 0;
+	
+	uint32 virt_base = ptr_frame_info->mapped_address;
+	uint32 offset = PGOFF(physical_address);
+	uint32 pa = virt_base | offset; 
+	return pa;
 }
 
 //=================================
@@ -98,9 +106,18 @@ unsigned int kheap_physical_address(unsigned int virtual_address)
 	//TODO: [PROJECT'25.GM#2] KERNEL HEAP - #4 kheap_physical_address
 	//Your code is here
 	//Comment the following line
-	panic("kheap_physical_address() is not implemented yet...!!");
+	// panic("kheap_physical_address() is not implemented yet...!!");
 
 	/*EFFICIENT IMPLEMENTATION ~O(1) IS REQUIRED */
+	uint32 pdx = ptr_page_directory[PDX(virtual_address)];
+	if(!(pdx & PERM_PRESENT))
+		return 0;
+	uint32* page_table = (uint32*) STATIC_KERNEL_PHYSICAL_ADDRESS(EXTRACT_ADDRESS(pdx));
+	uint32 ptx = page_table[PTX(virtual_address)];
+	if(!(ptx & PERM_PRESENT))
+		return 0;
+	uint32 pa = EXTRACT_ADDRESS(ptx) | PGOFF(virtual_address);
+	return pa;
 }
 
 //=================================================================================//
