@@ -195,12 +195,11 @@ void* kmalloc(unsigned int size)
 	//TODO: [PROJECT'25.GM#2] KERNEL HEAP - #1 kmalloc
 	//Your code is here
 	//Comment the following line
-	if(size == 0 ) {
+	if(size == 0 ) 
 		return 0;
-	}
-	if(size <= DYN_ALLOC_MAX_BLOCK_SIZE) { // block allocator
-		return alloc_block(size);
-	}
+	
+	if(size <= DYN_ALLOC_MAX_BLOCK_SIZE)  // block allocator
+        return alloc_block(size);
 	else { // page allocator
 		return page_allocator(size);
 		// return page_allocator_fast(size);
@@ -277,10 +276,88 @@ unsigned int kheap_physical_address(unsigned int virtual_address)
 
 extern __inline__ uint32 get_block_size(void *va);
 
+static uint32 kheap_get_allocated_size(void* virtual_address)
+{
+    uint32 va = (uint32)virtual_address;
+    uint32 size = 0;
+    uint32* ptr_table;
+    va = ROUNDDOWN(va, PAGE_SIZE);
+    for (;va < kheapPageAllocBreak; va += PAGE_SIZE){
+        struct FrameInfo* fi = get_frame_info(ptr_page_directory, va, &ptr_table);
+        if (fi == NULL) break;
+        size += PAGE_SIZE;
+    }
+    return size;
+}
+
 void *krealloc(void *virtual_address, uint32 new_size)
 {
 	//TODO: [PROJECT'25.BONUS#2] KERNEL REALLOC - krealloc
 	//Your code is here
 	//Comment the following line
-	panic("krealloc() is not implemented yet...!!");
+	// panic("krealloc() is not implemented yet...!!");
+    if(virtual_address == NULL)
+        return kmalloc(new_size);
+    if(new_size == 0) {
+        kfree(virtual_address);
+        return NULL;
+    }
+    uint32 old_size;
+    bool old_is_block = 
+        ((uint32)virtual_address >= KERNEL_HEAP_START && (uint32)virtual_address < kheapPageAllocStart);
+    bool new_is_block = (new_size <= DYN_ALLOC_MAX_BLOCK_SIZE);
+
+    if (old_is_block) old_size = get_block_size(virtual_address);
+    else old_size = kheap_get_allocated_size(virtual_address);
+    
+    // 1. block (stays) 
+    if (old_is_block && new_is_block) 
+        return realloc_block(virtual_address, new_size);
+
+    // 2. page (stays)
+    if (!old_is_block && !new_is_block) {
+        uint32 new_aligned_size = ROUNDUP(new_size, PAGE_SIZE);
+        uint32 old_aligned_size = old_size; 
+        // inplace shrink
+        if (new_aligned_size < old_aligned_size) {
+            uint32 va_to_free = (uint32)virtual_address + new_aligned_size;
+            kfree((void*)va_to_free);
+            return virtual_address;
+        }
+        // inplace grow 
+        uint32 old_end_va = (uint32)virtual_address + old_aligned_size;
+        if (old_end_va == kheapPageAllocBreak){
+            uint32 diff_size = new_aligned_size - old_aligned_size;
+            if (kmalloc(diff_size) == (void*)kheapPageAllocBreak) 
+                return virtual_address;
+        }
+
+        // need to allocate new
+        void* new_va = kmalloc(new_size);
+        if (new_va == NULL) return NULL;
+        memcpy(new_va, virtual_address, old_size); 
+        kfree(virtual_address);
+        return new_va;
+    }
+
+    // 3 Block to Page (Grow)
+    if (old_is_block && !new_is_block) {
+        void* new_va = kmalloc(new_size);
+        if (new_va == NULL) return NULL;
+        memcpy(new_va, virtual_address, old_size); 
+        kfree(virtual_address);
+        return new_va;
+    }
+
+    // 4 Page to Block (shrink)
+    if (!old_is_block && new_is_block) {
+        void* new_va = kmalloc(new_size);
+        if (new_va == NULL) return NULL;
+        memcpy(new_va, virtual_address, new_size); 
+        kfree(virtual_address);
+        return new_va;
+    }
+    
+    // shouldnt happen
+    return NULL;
 }
