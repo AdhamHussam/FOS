@@ -31,19 +31,44 @@ __inline__ uint32 to_page_va(struct PageInfoElement *ptrPageInfo)
 bool is_initialized = 0;
 void initialize_dynamic_allocator(uint32 daStart, uint32 daEnd)
 {
-	//==================================================================================
-	//DON'T CHANGE THESE LINES==========================================================
-	//==================================================================================
-	{
-		assert(daEnd <= daStart + DYN_ALLOC_MAX_SIZE);
-		is_initialized = 1;
-	}
-	//==================================================================================
-	//==================================================================================
-	//TODO: [PROJECT'25.GM#1] DYNAMIC ALLOCATOR - #1 initialize_dynamic_allocator
-	//Your code is here
-	//Comment the following line
-	panic("initialize_dynamic_allocator() Not implemented yet");
+    //==================================================================================
+    //DON'T CHANGE THESE LINES==========================================================
+    //==================================================================================
+    {
+        assert(daEnd <= daStart + DYN_ALLOC_MAX_SIZE);
+        is_initialized = 1;
+    }
+    //==================================================================================
+    //==================================================================================
+    //TODO: [PROJECT'25.GM#1] DYNAMIC ALLOCATOR - #1 initialize_dynamic_allocator
+    //Your code is here
+
+    //initializing start and end
+    dynAllocStart = daStart;
+    dynAllocEnd = daEnd;
+
+    //initializing free page list
+    LIST_INIT(&freePagesList);
+
+    //initializing page info array
+    int ps = PAGE_SIZE;
+    int page_info_array_size = DYN_ALLOC_MAX_SIZE/ps;
+    for(int i=0;i<page_info_array_size;i++){
+
+        pageBlockInfoArr[i].block_size = 0;
+        pageBlockInfoArr[i].num_of_free_blocks = 0;
+        LIST_INSERT_TAIL(&freePagesList, &pageBlockInfoArr[i]);
+    }
+
+
+    //initializing free block list
+    int free_blk_list_array_size = LOG2_MAX_SIZE - LOG2_MIN_SIZE + 1;
+    for(int i=0;i<free_blk_list_array_size;i++){
+        LIST_INIT(&freeBlockLists[i]);
+    }
+
+    //Comment the following line
+    //panic("initialize_dynamic_allocator() Not implemented yet");
 
 }
 

@@ -125,6 +125,7 @@ static void* kmalloc_page_allocator(unsigned int size)
 	// 4
     return NULL;
 }
+
 void* kmalloc(unsigned int size)
 {
 	//TODO: [PROJECT'25.GM#2] KERNEL HEAP - #1 kmalloc
