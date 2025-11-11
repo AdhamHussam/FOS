@@ -6,6 +6,7 @@
 #endif
 
 #include <inc/types.h>
+#include <inc/queue.h>
 
 
 /*2017*/
@@ -26,6 +27,17 @@ uint32 kheapPlacementStrategy;
 static inline void set_kheap_strategy(uint32 strategy){kheapPlacementStrategy = strategy;}
 static inline uint32 get_kheap_strategy(){return kheapPlacementStrategy ;}
 
+//***********************************
+struct PageChunk
+{
+    uint32 start;      // The starting virtual address of the hole
+    uint32 num_of_pages; // number of pages in the hole
+    LIST_ENTRY(PageChunk) prev_next_info; // Link for the free list
+};
+
+// The head of the free list
+LIST_HEAD(PageChunk_List, PageChunk);
+extern struct PageChunk_List kheap_page_free_list;
 //***********************************
 void kheap_init();
 
