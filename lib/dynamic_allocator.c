@@ -121,7 +121,7 @@ void free_block(void *va)
 	//Your code is here
 	//Comment the following line
 	panic("free_block() Not implemented yet");
-	
+
 }
 
 //==================================================================================//
@@ -137,6 +137,6 @@ void *realloc_block(void* va, uint32 new_size)
 	//Your code is here
 	//Comment the following line
 	// is this kareems or our function ?
-	
+	// ours
 	panic("realloc_block() Not implemented yet");
 }
