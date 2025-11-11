@@ -66,7 +66,7 @@ void return_page(void* va)
 //===================================
 
 // FAST KMALLOC USING BST INSERTIONS AND EXACT AND MAX SELECTIONS
-static void* kmalloc_page_allocator_fast(unsigned int size)
+static void* page_allocator_fast(unsigned int size)
 {
     uint32 pages_needed = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
 
@@ -122,7 +122,7 @@ static void* kmalloc_page_allocator_fast(unsigned int size)
     // 4 
     return NULL;
 }
-static void* kmalloc_page_allocator(unsigned int size)
+static void* page_allocator(unsigned int size)
 {
     uint32 pages_needed = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
     struct PageChunk *cur = NULL;
@@ -202,7 +202,8 @@ void* kmalloc(unsigned int size)
 		return alloc_block(size);
 	}
 	else { // page allocator
-		return kmalloc_page_allocator(size);
+		return page_allocator(size);
+		// return page_allocator_fast(size);
 	}
 	//TODO: [PROJECT'25.BONUS#3] FAST PAGE ALLOCATOR
 }
