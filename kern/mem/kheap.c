@@ -64,7 +64,26 @@ void return_page(void* va)
 //===================================
 // [1] ALLOCATE SPACE IN KERNEL HEAP:
 //===================================
+static void set_allocation_size_info(uint32 start_va, uint32 pages_needed)
+{
+    uint32* ptr_page_table;
+    
+    // Set size in the first frame
+    struct FrameInfo* first_frame_info = get_frame_info(ptr_page_directory, start_va, &ptr_page_table);
+    if (first_frame_info != NULL) {
+        first_frame_info->num_of_allocated_pages = pages_needed;
+    } else {
+        panic("set_allocation_size_info: first frame is not mapped!");
+    }
 
+    // Clear size in all subsequent frames
+    for (uint32 i = 1; i < pages_needed; i++) {
+        struct FrameInfo* subsequent_frame_info = get_frame_info(ptr_page_directory, start_va + (i * PAGE_SIZE), &ptr_page_table);
+        if (subsequent_frame_info != NULL) {
+            subsequent_frame_info->num_of_allocated_pages = 0; // Not a starting page
+        }
+    }
+}
 // FAST KMALLOC USING BST INSERTIONS AND EXACT AND MAX SELECTIONS
 static void* page_allocator_fast(unsigned int size)
 {
@@ -99,6 +118,7 @@ static void* page_allocator_fast(unsigned int size)
             int ret = alloc_page(ptr_page_directory, va, PERM_WRITEABLE, 1);
             if (ret == E_NO_MEM) panic("kmalloc_fast: Out of physical memory!");
         }
+        set_allocation_size_info((uint32)allocate_from, pages_needed); // setting allocation here
         return allocate_from;
     }
     
@@ -115,6 +135,7 @@ static void* page_allocator_fast(unsigned int size)
                 return NULL;
             }
         }
+        set_allocation_size_info((uint32)kheapPageAllocBreak, pages_needed); // setting allocation 
         kheapPageAllocBreak += (pages_needed * PAGE_SIZE);
         return ptr;
     }
@@ -165,6 +186,7 @@ static void* page_allocator(unsigned int size)
             if (ret == E_NO_MEM) 
 			    panic("kmalloc_page_allocator: Out of physical memory while mapping a free chunk!");
         }
+        set_allocation_size_info((uint32)allocate_from, pages_needed); // setting allocation here
         return allocate_from;
     }
 
@@ -181,6 +203,7 @@ static void* page_allocator(unsigned int size)
                 return NULL; // no mem
             }
         }
+        set_allocation_size_info((uint32)kheapPageAllocBreak, pages_needed); // setting allocation
         kheapPageAllocBreak += (pages_needed * PAGE_SIZE);// move the break fo2
         return ptr;
     }
@@ -200,7 +223,7 @@ void* kmalloc(unsigned int size)
 	
 	if(size <= DYN_ALLOC_MAX_BLOCK_SIZE)  // block allocator
         return alloc_block(size);
-	else { // page allocator
+	else {
 		return page_allocator(size);
 		// return page_allocator_fast(size);
 	}
@@ -212,8 +235,71 @@ void* kmalloc(unsigned int size)
 //=================================
 void page_free(void* virtual_address)
 {
-    // TODO:
-    return ;
+    uint32 va = (uint32)virtual_address;
+    uint32* ptr_page_table = NULL;
+
+    struct FrameInfo* first_frame_info = get_frame_info(ptr_page_directory, va, &ptr_page_table);    
+    if (first_frame_info == NULL) 
+        panic("kfree(page_free): trying to free an unmapped address!");
+    
+    uint32 pages_to_free = first_frame_info->num_of_allocated_pages;
+    if (pages_to_free == 0) 
+        panic("kfree(page_free): trying to free address that is not the start of an allocation, or double free!");
+    for (uint32 i = 0; i < pages_to_free; i++) 
+        unmap_frame(ptr_page_directory, va + (i * PAGE_SIZE));
+    
+    first_frame_info->num_of_allocated_pages = 0; 
+
+    // MERGING FREE CHUNKS
+    uint32 chunk_start = va;
+    uint32 chunk_pages = pages_to_free;
+    struct PageChunk *prev_chunk = NULL;
+    struct PageChunk *next_chunk = NULL;
+    struct PageChunk *it;
+    struct PageChunk *final_chunk = NULL; // This will be the new/merged chunk
+
+    // Find adjacent chunks in the free list
+    LIST_FOREACH(it, &kheap_page_free_list) {
+        // chunk after 
+        if (it->start == chunk_start + (chunk_pages * PAGE_SIZE)) 
+            next_chunk = it;
+        // chunk before 
+        if (it->start + (it->num_of_pages * PAGE_SIZE) == chunk_start)
+            prev_chunk = it;   
+    }
+    // 4. Perform merge
+    if (prev_chunk != NULL && next_chunk != NULL) { // BOTH
+        prev_chunk->num_of_pages += chunk_pages + next_chunk->num_of_pages;
+        LIST_REMOVE(&kheap_page_free_list, next_chunk);
+        free_block(next_chunk); // Free the PageChunk struct itself
+        final_chunk = prev_chunk; 
+    }
+    else if (prev_chunk != NULL) { // PREV
+        prev_chunk->num_of_pages += chunk_pages;
+        final_chunk = prev_chunk;
+    }
+    else if (next_chunk != NULL) { // NEXT
+        next_chunk->start = chunk_start;
+        next_chunk->num_of_pages += chunk_pages;
+        final_chunk = next_chunk;
+    }
+    else { // No merge,create new chunk and add it to the list
+        struct PageChunk* new_chunk = (struct PageChunk*)alloc_block(sizeof(struct PageChunk));
+        if (new_chunk == NULL) 
+            panic("page_free: out of memory for PageChunk struct!");
+        new_chunk->start = chunk_start;
+        new_chunk->num_of_pages = chunk_pages;
+        
+        LIST_INSERT_HEAD(&kheap_page_free_list, new_chunk);
+        final_chunk = new_chunk;
+    }
+
+    // update kheapPageAllocBreak
+    if (final_chunk->start + (final_chunk->num_of_pages * PAGE_SIZE) == kheapPageAllocBreak) {
+        kheapPageAllocBreak = final_chunk->start;
+        LIST_REMOVE(&kheap_page_free_list, final_chunk);
+        free_block(final_chunk);
+    }
 }
 void kfree(void* virtual_address)
 {
@@ -292,16 +378,11 @@ extern __inline__ uint32 get_block_size(void *va);
 
 static uint32 kheap_get_allocated_size(void* virtual_address)
 {
-    uint32 va = (uint32)virtual_address;
-    uint32 size = 0;
     uint32* ptr_table;
-    va = ROUNDDOWN(va, PAGE_SIZE);
-    for (;va < kheapPageAllocBreak; va += PAGE_SIZE){
-        struct FrameInfo* fi = get_frame_info(ptr_page_directory, va, &ptr_table);
-        if (fi == NULL) break;
-        size += PAGE_SIZE;
-    }
-    return size;
+    struct FrameInfo* fi = get_frame_info(ptr_page_directory, (uint32)virtual_address, &ptr_table);
+    if (fi == NULL || fi->num_of_allocated_pages == 0) 
+        return 0; 
+    return (fi->num_of_allocated_pages * PAGE_SIZE);
 }
 
 void *krealloc(void *virtual_address, uint32 new_size)
@@ -322,8 +403,11 @@ void *krealloc(void *virtual_address, uint32 new_size)
     bool new_is_block = (new_size <= DYN_ALLOC_MAX_BLOCK_SIZE);
 
     if (old_is_block) old_size = get_block_size(virtual_address);
-    else old_size = kheap_get_allocated_size(virtual_address);
-    
+    else {
+        old_size = kheap_get_allocated_size(virtual_address);
+        if(old_size == 0) 
+            panic("krealloc(): invalid page address address!");
+    }
     // 1. block (stays) 
     if (old_is_block && new_is_block) 
         return realloc_block(virtual_address, new_size);

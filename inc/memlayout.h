@@ -217,6 +217,7 @@ struct FrameInfo {
 	struct Env *proc;
 	unsigned char isBuffered;
 	uint32 mapped_address;
+	uint32 num_of_allocated_pages;
 };
 
 #endif /* !__ASSEMBLER__ */
