@@ -159,7 +159,7 @@ int allocate_frame(struct FrameInfo **ptr_frame_info)
 
 	if (*ptr_frame_info == NULL)
 	{
-		panic("ERROR: Kernel run out of memory... allocate_frame cannot find a free frame.\n");
+		return E_NO_MEM;
 	}
 
 	LIST_REMOVE(&MemFrameLists.free_frame_list,*ptr_frame_info);

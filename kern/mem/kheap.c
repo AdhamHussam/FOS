@@ -210,12 +210,26 @@ void* kmalloc(unsigned int size)
 //=================================
 // [2] FREE SPACE FROM KERNEL HEAP:
 //=================================
+void page_free(void* virtual_address)
+{
+    // TODO:
+    return ;
+}
 void kfree(void* virtual_address)
 {
 	//TODO: [PROJECT'25.GM#2] KERNEL HEAP - #2 kfree
 	//Your code is here
-	//Comment the following line
-	panic("kfree() is not implemented yet...!!");
+	if (virtual_address == NULL)
+        return;
+
+    uint32 va = (uint32)virtual_address;
+    if (va >= dynAllocStart && va < dynAllocEnd) 
+        free_block(virtual_address);
+    else if (va >= kheapPageAllocStart && va < KERNEL_HEAP_MAX)
+        page_free(virtual_address);  
+    else
+        panic("kfree() called on an invalid address!");
+    
 }
 
 //=================================
