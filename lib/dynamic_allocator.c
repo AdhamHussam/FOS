@@ -12,13 +12,27 @@
 //============================== GIVEN FUNCTIONS ===================================//
 //==================================================================================//
 //==================================
+//==================================
 // [1] GET PAGE VA:
 //==================================
 __inline__ uint32 to_page_va(struct PageInfoElement *ptrPageInfo)
 {
+	if (ptrPageInfo < &pageBlockInfoArr[0] || ptrPageInfo >= &pageBlockInfoArr[DYN_ALLOC_MAX_SIZE/PAGE_SIZE])
+			panic("to_page_va called with invalid pageInfoPtr");
 	//Get start VA of the page from the corresponding Page Info pointer
 	int idxInPageInfoArr = (ptrPageInfo - pageBlockInfoArr);
 	return dynAllocStart + (idxInPageInfoArr << PGSHIFT);
+}
+
+//==================================
+// [2] GET PAGE INFO OF PAGE VA:
+//==================================
+__inline__ struct PageInfoElement * to_page_info(uint32 va)
+{
+	int idxInPageInfoArr = (va - dynAllocStart) >> PGSHIFT;
+	if (idxInPageInfoArr < 0 || idxInPageInfoArr >= DYN_ALLOC_MAX_SIZE/PAGE_SIZE)
+		panic("to_page_info called with invalid pa");
+	return &pageBlockInfoArr[idxInPageInfoArr];
 }
 
 //==================================================================================//
@@ -52,7 +66,7 @@ void initialize_dynamic_allocator(uint32 daStart, uint32 daEnd)
 
     //initializing page info array
     int ps = PAGE_SIZE;
-    int page_info_array_size = DYN_ALLOC_MAX_SIZE/ps;
+    int page_info_array_size = (daEnd-daStart)/ps;
     for(int i=0;i<page_info_array_size;i++){
         pageBlockInfoArr[i].block_size = 0;
         pageBlockInfoArr[i].num_of_free_blocks = 0;
@@ -87,22 +101,70 @@ __inline__ uint32 get_block_size(void *va)
 //===========================
 void *alloc_block(uint32 size)
 {
-	//==================================================================================
-	//DON'T CHANGE THESE LINES==========================================================
-	//==================================================================================
-	{
-		assert(size <= DYN_ALLOC_MAX_BLOCK_SIZE);
-	}
-	//==================================================================================
-	//==================================================================================
-	//TODO: [PROJECT'25.GM#1] DYNAMIC ALLOCATOR - #3 alloc_block
-	//Your code is here
-	//Comment the following line
-	panic("alloc_block() Not implemented yet");
+    //==================================================================================
+    //DON'T CHANGE THESE LINES==========================================================
+    //==================================================================================
+    {
+        assert(size <= DYN_ALLOC_MAX_BLOCK_SIZE);
+    }
+    //==================================================================================
+    //==================================================================================
+    //TODO: [PROJECT'25.GM#1] DYNAMIC ALLOCATOR - #3 alloc_block
+    //Your code is here
+    uint32 req = size;
+    uint32 nearestPof2=8;
+    int idx=0;
+    if(req==0)
+        return NULL;
 
-	//TODO: [PROJECT'25.BONUS#1] DYNAMIC ALLOCATOR - block if no free block
+    //find nearest power of 2
+    while(nearestPof2<req){
+    	nearestPof2*=2;
+    	idx++;
+    }
+    //case one: a free block exists
+    if(LIST_SIZE(&freeBlockLists[idx])>0){
+        struct BlockElement *b = LIST_FIRST(&freeBlockLists[idx]);
+        //to_page_info
+//        int page_idx=(((uint32)b-dynAllocStart) >> PGSHIFT);
+        struct PageInfoElement *p = to_page_info((uint32)b);
+        p->num_of_free_blocks-=1;
+        LIST_REMOVE(&freeBlockLists[idx],b);
+        return (void*)b;
+    }else if(LIST_SIZE(&freePagesList)>0){
+        //case two: a page exists
+        struct PageInfoElement *p = LIST_FIRST(&freePagesList);
+        uint32 va = to_page_va(p);
+        get_page((void*)va);
+        p->block_size = nearestPof2;
+        p->num_of_free_blocks=(PAGE_SIZE/nearestPof2);
+        for(uint32 i=va;i<va+PAGE_SIZE;i+=nearestPof2){
+            struct BlockElement *blockva = (struct BlockElement*) i;
+            LIST_INSERT_TAIL(&freeBlockLists[idx],blockva);
+        }
+        LIST_REMOVE(&freePagesList,p);
+        struct BlockElement *b = LIST_FIRST(&freeBlockLists[idx]);
+        p->num_of_free_blocks-=1;
+        LIST_REMOVE(&freeBlockLists[idx],b);
+        return (void*)b;
+    }
+   	//case three: allocate block from next list
+   	int free_blk_list_array_size = LOG2_MAX_SIZE - LOG2_MIN_SIZE + 1;
+   	for(int i=idx;i<free_blk_list_array_size;i++){
+   		if(LIST_SIZE(&freeBlockLists[i]) > 0){
+   			struct BlockElement *b = LIST_FIRST(&freeBlockLists[i]);
+   			struct PageInfoElement *p = to_page_info((uint32)b);
+   			p->num_of_free_blocks-=1;
+    		LIST_REMOVE(&freeBlockLists[i],b);
+  			return (void*)b;
+   		}
+    }
+
+   	return NULL;
+    //Comment the following line
+    //panic("alloc_block() Not implemented yet");
+    //TODO: [PROJECT'25.BONUS#1] DYNAMIC ALLOCATOR - block if no free block
 }
-
 //===========================
 // [4] FREE BLOCK:
 //===========================
@@ -121,7 +183,6 @@ void free_block(void *va)
 	//Your code is here
 	//Comment the following line
 	panic("free_block() Not implemented yet");
-
 }
 
 //==================================================================================//
@@ -136,8 +197,5 @@ void *realloc_block(void* va, uint32 new_size)
 	//TODO: [PROJECT'25.BONUS#2] KERNEL REALLOC - realloc_block
 	//Your code is here
 	//Comment the following line
-	// is this kareems or our function ?
-	// ours
-	//EL7OKOOOM
 	panic("realloc_block() Not implemented yet");
 }
