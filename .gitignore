@@ -1,0 +1,4 @@
+/bochs.log
+obj/kern/bochs.img
+obj/
+settings/language.settings.xml
