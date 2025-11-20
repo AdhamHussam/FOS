@@ -216,6 +216,15 @@ struct FrameInfo {
 	uint16 references;
 	struct Env *proc;
 	unsigned char isBuffered;
+	// --- MODIFICATIONS START ---
+    // Stores the Virtual Address where this frame is mapped.
+    // Essential for kheap_virtual_address() to work in O(1).
+    uint32 mapped_address;
+
+    // Stores the total number of pages in the allocation block this frame belongs to.
+    // Essential for kfree() to know how many pages to unmap.
+    uint32 num_of_allocated_pages;
+    // --- MODIFICATIONS END ---
 };
 
 #endif /* !__ASSEMBLER__ */

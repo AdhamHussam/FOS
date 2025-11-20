@@ -53,7 +53,17 @@ inline int pt_get_page_permissions(uint32* directory, uint32 virtual_address )
 {
 	//TODO: PRACTICE: fill this function.
 	//Comment the following line
-	panic("pt_get_page_permissions() is not implemented yet!");
+	// panic("pt_get_page_permissions() is not implemented yet!");
+	uint32* ptr_page_table;
+    int ret = get_page_table(directory, virtual_address, &ptr_page_table);
+    
+    if (ret == TABLE_IN_MEMORY)
+    {
+        // Return the entry's lower 12 bits (where flags/permissions live)
+        return PGOFF(ptr_page_table[PTX(virtual_address)]);
+    }
+    
+    return -1; // Table not found
 }
 
 //===============================
@@ -67,7 +77,21 @@ inline void pt_clear_page_table_entry(uint32* directory, uint32 virtual_address)
 {
 	//TODO: PRACTICE: fill this function.
 	//Comment the following line
-	panic("pt_clear_page_table_entry() is not implemented yet!");
+	// panic("pt_clear_page_table_entry() is not implemented yet!");
+	uint32* ptr_page_table;
+    int ret = get_page_table(directory, virtual_address, &ptr_page_table);
+    
+    if (ret == TABLE_IN_MEMORY)
+    {
+        // Zero out the entry
+        ptr_page_table[PTX(virtual_address)] = 0;
+        // Invalidate TLB
+        tlb_invalidate(directory, (void *)virtual_address);
+    }
+    else
+    {
+        panic("pt_clear_page_table_entry() called with invalid virtual address");
+    }
 }
 
 /***********************************************************************************************/
@@ -85,7 +109,20 @@ inline uint32 virtual_to_physical(uint32* directory, uint32 virtual_address)
 {
 	//TODO: PRACTICE: fill this function.
 	//Comment the following line
-	panic("Function is not implemented yet!");
+	// panic("Function is not implemented yet!");
+	uint32* ptr_page_table;
+    int ret = get_page_table(directory, virtual_address, &ptr_page_table);
+
+    if (ret == TABLE_IN_MEMORY)
+    {
+        uint32 entry = ptr_page_table[PTX(virtual_address)];
+        
+        if ((entry & PERM_PRESENT) == PERM_PRESENT)
+        {
+            return EXTRACT_ADDRESS(entry) | PGOFF(virtual_address);
+        }
+    }
+    return -1; // Not mapped
 }
 
 //===============================
@@ -98,7 +135,16 @@ inline uint32 physical_to_virtual(uint32* directory, uint32 physical_address)
 {
 	//TODO: PRACTICE: fill this function.
 	//Comment the following line
-	panic("Function is not implemented yet!");
+	// panic("Function is not implemented yet!");
+	struct FrameInfo* ptr_fi = to_frame_info(physical_address);
+    
+    // If the frame is used and has a valid mapped address
+    if(ptr_fi && ptr_fi->references != 0)
+    {
+        return ptr_fi->mapped_address | (PGOFF(physical_address));
+    }
+
+    return 0; // Not found
 }
 
 //===============================
@@ -166,7 +212,19 @@ inline int alloc_shared_page(uint32* page_dir1, uint32 va1,uint32* page_dir2, ui
 {
 	//TODO: PRACTICE: fill this function.
 	//Comment the following line
-	panic("Function is not implemented yet!");
+	// panic("Function is not implemented yet!");
+	uint32* ptr_table1;
+    struct FrameInfo* ptr_fi = get_frame_info(page_dir1, va1, &ptr_table1);
+    
+    if (ptr_fi == NULL) return E_NO_MEM; // Source not mapped
+
+    // 2. Map the SAME frame to va2 in page_dir2
+    // Note: map_frame increments references automatically
+    int ret = map_frame(page_dir2, ptr_fi, va2, perms);
+    
+    if (ret == E_NO_MEM) return E_NO_MEM;
+    
+    return 0;
 }
 
 //===============================

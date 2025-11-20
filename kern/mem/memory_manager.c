@@ -129,6 +129,9 @@ void initialize_paging()
 void initialize_frame_info(struct FrameInfo *ptr_frame_info)
 {
 	memset(ptr_frame_info, 0, sizeof(*ptr_frame_info));
+	// Explicitly zero out your custom fields to be safe
+    ptr_frame_info->mapped_address = 0;
+    ptr_frame_info->num_of_allocated_pages = 0;
 }
 
 //
@@ -411,14 +414,19 @@ int map_frame(uint32 *ptr_page_directory, struct FrameInfo *ptr_frame_info, uint
 	if ((page_table_entry & PERM_PRESENT) == PERM_PRESENT)
 	{
 		//on this pa, then do nothing
-		if (EXTRACT_ADDRESS(page_table_entry) == physical_address)
+		if (EXTRACT_ADDRESS(page_table_entry) == physical_address){
+			// MODIFICATION HERE
+			ptr_frame_info->mapped_address = ROUNDDOWN(virtual_address, PAGE_SIZE); // Update mapped_address
 			return 0;
+		}
 		//on another pa, then unmap it
 		else
 			unmap_frame(ptr_page_directory , virtual_address);
 	}
-	ptr_frame_info->references++;
 
+	ptr_frame_info->references++;
+	// MODIFICATION HERE
+	ptr_frame_info->mapped_address = ROUNDDOWN(virtual_address, PAGE_SIZE); // Update mapped_address
 	/*********************************************************************************/
 	/*NEW'23 el7:)
 	 * map_frame(): KEEP THE VALUES OF THE AVAILABLE BITS*/
