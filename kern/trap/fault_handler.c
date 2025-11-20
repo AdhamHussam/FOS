@@ -269,7 +269,7 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 			//Comment the following line
 			panic("page_fault_handler().REPLACEMENT is not implemented yet...!!");
 		}
-		else if (isPageReplacmentAlgorithmOPTIMAL())
+		else if (isPageReplacmentAlgorithmCLOCK())
 		{
 			//TODO: [PROJECT'25.IM#1] FAULT HANDLER II - #3 Clock Replacement
 			//Your code is here
