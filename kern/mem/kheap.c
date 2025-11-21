@@ -12,6 +12,10 @@ struct PageChunk_List kheap_page_free_list;
 // trees
 struct PageChunkNode* kheap_free_tree_by_size = NULL;
 struct PageChunkNode* kheap_free_tree_by_addr = NULL;
+
+uint32 kheapPageAllocStart = 0;
+uint32 kheapPageAllocBreak = 0;
+uint32 kheapPlacementStrategy = 0;
 //==================================================================================//
 //============================== GIVEN FUNCTIONS ===================================//
 //==================================================================================//

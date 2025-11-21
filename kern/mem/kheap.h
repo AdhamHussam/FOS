@@ -19,9 +19,9 @@
 #define KHP_PLACE_CUSTOMFIT 0x5
 
 //TODO: [PROJECT'25.GM#2] KERNEL HEAP - #0 Page Alloc Limits [GIVEN]
-uint32 kheapPageAllocStart ;
-uint32 kheapPageAllocBreak ;
-uint32 kheapPlacementStrategy;
+extern uint32 kheapPageAllocStart ;
+extern uint32 kheapPageAllocBreak ;
+extern uint32 kheapPlacementStrategy;
 
 /*2025*/ //Replaced by setter & getter function
 static inline void set_kheap_strategy(uint32 strategy){kheapPlacementStrategy = strategy;}
