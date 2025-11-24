@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "queue.h": "c",
+        "memlayout.h": "c",
+        "test_kheap.h": "c",
+        "kheap_bst.h": "c"
+    }
+}

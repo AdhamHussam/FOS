@@ -165,6 +165,25 @@ void fault_handler(struct Trapframe *tf)
 			//TODO: [PROJECT'25.GM#3] FAULT HANDLER I - #2 Check for invalid pointers
 			//(e.g. pointing to unmarked user heap page, kernel or wrong access rights),
 			//your code is here
+			bool inkernel =0;
+			            if(fault_va >= KERNEL_BASE || fault_va <= KERNEL_HEAP_MAX){
+			                //in kernel
+			                inkernel = 1 ;
+			            }
+
+			            //pointing to unmarked
+			            //READ only -> get the page check its read bit
+			            uint32* page_table;
+			            get_page_table(ptr_page_directory,(unsigned int)fault_va,&page_table);
+			            bool check =0 ;
+			            if(((page_table[PTX(fault_va)] & PERM_UHPAGE )== 1 )||((page_table[PTX(fault_va)] &PERM_WRITEABLE) == 0) )
+			            {
+			                check = 1 ;
+			            }
+			            //if any is true call env_exit()
+			            if(check || inkernel){
+			                env_exit();
+			            }
 
 			/*============================================================================================*/
 		}
@@ -255,10 +274,40 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 #endif
 	if(wsSize < (faulted_env->page_WS_max_size))
 	{
-		//TODO: [PROJECT'25.GM#3] FAULT HANDLER I - #3 placement
-		//Your code is here
+	    //TODO: [PROJECT'25.GM#3] FAULT HANDLER I - #3 placement
+	    //Your code is here
 		//Comment the following line
-		panic("page_fault_handler().PLACEMENT is not implemented yet...!!");
+		//panic("page_fault_handler().PLACEMENT is not implemented yet...!!");
+		int ret = alloc_page(faulted_env->env_page_directory, fault_va,
+				PERM_PRESENT | PERM_WRITEABLE | PERM_USER, 0);
+		if (ret != 0) {
+			panic("Out of memory!");
+		}
+		int disk_ret = pf_read_env_page(faulted_env, (void*)fault_va);
+	        if (disk_ret != 0) {
+	            //page not on disk
+	            //check if its in user stack or user heap
+	            if((fault_va >=USTACKBOTTOM || fault_va <= USTACKTOP) ||
+	                (fault_va >=USER_HEAP_START || fault_va <= USER_HEAP_MAX)){
+	                //ok
+	            }else
+	            {
+	                //exit the process
+	                env_exit();
+	            }
+	        }
+	        //create the ws element
+	        //add it to the env ws list
+
+	    victimWSElement = env_page_ws_list_create_element(faulted_env, fault_va);
+
+	    // Insert it into the environment's WS list
+	    LIST_INSERT_TAIL(&faulted_env->page_WS_list, victimWSElement);
+
+	    // Update the last inserted pointer
+	    if(LIST_SIZE(&faulted_env->page_WS_list)==(faulted_env->page_WS_max_size)){
+	    faulted_env->page_last_WS_element = LIST_FIRST(&faulted_env->page_WS_list);
+	    }
 	}
 	else
 	{

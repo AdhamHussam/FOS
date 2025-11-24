@@ -13,9 +13,6 @@ struct PageChunk_List kheap_page_free_list;
 struct PageChunkNode* kheap_free_tree_by_size = NULL;
 struct PageChunkNode* kheap_free_tree_by_addr = NULL;
 
-uint32 kheapPageAllocStart = 0;
-uint32 kheapPageAllocBreak = 0;
-uint32 kheapPlacementStrategy = 0;
 //==================================================================================//
 //============================== GIVEN FUNCTIONS ===================================//
 //==================================================================================//
@@ -269,7 +266,7 @@ void page_free(void* virtual_address)
          return; 
     
     for (uint32 i = 0; i < pages_to_free; i++) 
-        unmap_frame(ptr_page_directory, va + (i * PAGE_SIZE));
+        unmap_frame(ptr_page_directory, va + (i * PAGE_SIZE * 1LL));
     
     first_frame_info->num_of_allocated_pages = 0; 
 
@@ -279,8 +276,8 @@ void page_free(void* virtual_address)
     struct PageChunkNode* prev_node = bst_find_prev_neighbor(chunk_start);
     struct PageChunkNode* next_node = bst_find_next_neighbor(chunk_start);
     
-    bool merge_prev = (prev_node && (prev_node->start + prev_node->num_of_pages * PAGE_SIZE == chunk_start));
-    bool merge_next = (next_node && (chunk_start + chunk_pages * PAGE_SIZE == next_node->start));
+    bool merge_prev = (prev_node && (prev_node->start + prev_node->num_of_pages * PAGE_SIZE * 1LL == chunk_start));
+    bool merge_next = (next_node && (chunk_start + chunk_pages * PAGE_SIZE * 1LL == next_node->start));
 
     struct PageChunkNode* final_node = NULL;
 
@@ -319,7 +316,7 @@ void page_free(void* virtual_address)
     }
 
     // update kheapPageAllocBreak if at end
-    if (final_node->start + (final_node->num_of_pages * PAGE_SIZE) == kheapPageAllocBreak) {
+    if (final_node->start + (final_node->num_of_pages * PAGE_SIZE * 1LL) == kheapPageAllocBreak) {
         kheapPageAllocBreak = final_node->start;
         // If we merged or created, we must free the metadata node to return memory to OS
         free_block(final_node); 
