@@ -149,7 +149,7 @@ static void* page_allocator_fast(unsigned int size)
     }
     
     // 3. Extend the Break
-    if (kheapPageAllocBreak + (pages_needed * PAGE_SIZE) <= KERNEL_HEAP_MAX) {
+    if (kheapPageAllocBreak * 1LL + (1LL * pages_needed * PAGE_SIZE) <= KERNEL_HEAP_MAX) {
         void* ptr = (void*) kheapPageAllocBreak;
         for (uint32 i = 0; i < pages_needed; i++) {
             uint32 va = kheapPageAllocBreak + (i * PAGE_SIZE);
@@ -246,7 +246,7 @@ void* kmalloc(unsigned int size)
 	if(size <= DYN_ALLOC_MAX_BLOCK_SIZE)  // block allocator
         return alloc_block(size);
 	else {
-		// return page_allocator(size);
+//		 return page_allocator(size);
 		return page_allocator_fast(size);
 	}
 	//TODO: [PROJECT'25.BONUS#3] FAST PAGE ALLOCATOR
