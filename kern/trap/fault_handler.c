@@ -161,31 +161,43 @@ void fault_handler(struct Trapframe *tf)
 	{
 		if (userTrap)
 		{
-			/*============================================================================================*/
-			//TODO: [PROJECT'25.GM#3] FAULT HANDLER I - #2 Check for invalid pointers
-			//(e.g. pointing to unmarked user heap page, kernel or wrong access rights),
-			//your code is here
-			bool inkernel =0;
-			            if(fault_va >= KERNEL_BASE || fault_va <= KERNEL_HEAP_MAX){
-			                //in kernel
-			                inkernel = 1 ;
-			            }
+		    /*============================================================================================*/
+		    // TODO: [PROJECT'25.GM#3] FAULT HANDLER I - #2 Check for invalid pointers
+		    //(e.g. pointing to unmarked user heap page, kernel or wrong access rights),
+		    // your code is here
 
-			            //pointing to unmarked
-			            //READ only -> get the page check its read bit
-			            uint32* page_table;
-			            get_page_table(ptr_page_directory,(unsigned int)fault_va,&page_table);
-			            bool check =0 ;
-			            if(((page_table[PTX(fault_va)] & PERM_UHPAGE )== 1 )||((page_table[PTX(fault_va)] &PERM_WRITEABLE) == 0) )
-			            {
-			                check = 1 ;
-			            }
-			            //if any is true call env_exit()
-			            if(check || inkernel){
-			                env_exit();
-			            }
+			//env_page_ws_print(faulted_env);
 
-			/*============================================================================================*/
+		    bool invalid = 0;
+		    if (fault_va >= USER_LIMIT)
+		    {
+		        // in kernel
+		        invalid = 1;
+		    }
+		    uint32 *page_table;
+		    get_page_table(faulted_env->env_page_directory, (uint32)fault_va, &page_table);
+		    // pointing to unmarked in user heap
+		    if (fault_va >= USER_HEAP_START && fault_va < USER_HEAP_MAX)
+		    {
+		        // in user heap
+		        if (((page_table[PTX(fault_va)] & PERM_UHPAGE) == 0))
+		        {
+		            invalid = 1;
+		        }
+		    }
+		    // READ only -> get the page check its read bit
+		    if ((page_table[PTX(fault_va)] & PERM_PRESENT) &&
+		        !(page_table[PTX(fault_va)] & PERM_WRITEABLE))
+		    {
+		        invalid = 1;
+		    }
+		    // if any is true call env_exit()
+		    if (invalid)
+		    {
+		        env_exit();
+		    }
+
+		    /*============================================================================================*/
 		}
 
 		/*2022: Check if fault due to Access Rights */
@@ -263,83 +275,100 @@ int get_optimal_num_faults(struct WS_List *initWorkingSet, int maxWSSize, struct
 	panic("get_optimal_num_faults() is not implemented yet...!!");
 }
 
+
 void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 {
 #if USE_KHEAP
-	struct WorkingSetElement *victimWSElement = NULL;
-	uint32 wsSize = LIST_SIZE(&(faulted_env->page_WS_list));
-#else
-	int iWS =faulted_env->page_last_WS_index;
-	uint32 wsSize = env_page_ws_get_size(faulted_env);
-#endif
-	if(wsSize < (faulted_env->page_WS_max_size))
+	if (isPageReplacmentAlgorithmOPTIMAL())
 	{
-	    //TODO: [PROJECT'25.GM#3] FAULT HANDLER I - #3 placement
-	    //Your code is here
+		//TODO: [PROJECT'25.IM#1] FAULT HANDLER II - #1 Optimal Reference Stream
+		//Your code is here
 		//Comment the following line
-		//panic("page_fault_handler().PLACEMENT is not implemented yet...!!");
-		int ret = alloc_page(faulted_env->env_page_directory, fault_va,
-				PERM_PRESENT | PERM_WRITEABLE | PERM_USER, 0);
-		if (ret != 0) {
-			panic("Out of memory!");
-		}
-		int disk_ret = pf_read_env_page(faulted_env, (void*)fault_va);
-	        if (disk_ret != 0) {
-	            //page not on disk
-	            //check if its in user stack or user heap
-	            if((fault_va >=USTACKBOTTOM || fault_va <= USTACKTOP) ||
-	                (fault_va >=USER_HEAP_START || fault_va <= USER_HEAP_MAX)){
-	                //ok
-	            }else
-	            {
-	                //exit the process
-	                env_exit();
-	            }
-	        }
-	        //create the ws element
-	        //add it to the env ws list
-
-	    victimWSElement = env_page_ws_list_create_element(faulted_env, fault_va);
-
-	    // Insert it into the environment's WS list
-	    LIST_INSERT_TAIL(&faulted_env->page_WS_list, victimWSElement);
-
-	    // Update the last inserted pointer
-	    if(LIST_SIZE(&faulted_env->page_WS_list)==(faulted_env->page_WS_max_size)){
-	    faulted_env->page_last_WS_element = LIST_FIRST(&faulted_env->page_WS_list);
-	    }
+		panic("page_fault_handler().REPLACEMENT is not implemented yet...!!");
 	}
 	else
 	{
-		if (isPageReplacmentAlgorithmOPTIMAL())
-		{
-			//TODO: [PROJECT'25.IM#1] FAULT HANDLER II - #1 Optimal Reference Stream
-			//Your code is here
-			//Comment the following line
-			panic("page_fault_handler().REPLACEMENT is not implemented yet...!!");
-		}
-		else if (isPageReplacmentAlgorithmCLOCK())
-		{
-			//TODO: [PROJECT'25.IM#1] FAULT HANDLER II - #3 Clock Replacement
-			//Your code is here
-			//Comment the following line
-			panic("page_fault_handler().REPLACEMENT is not implemented yet...!!");
-		}
-		else if (isPageReplacmentAlgorithmLRU(PG_REP_LRU_TIME_APPROX))
-		{
-			//TODO: [PROJECT'25.IM#6] FAULT HANDLER II - #2 LRU Aging Replacement
-			//Your code is here
-			//Comment the following line
-			panic("page_fault_handler().REPLACEMENT is not implemented yet...!!");
-		}
-		else if (isPageReplacmentAlgorithmModifiedCLOCK())
-		{
-			//TODO: [PROJECT'25.IM#6] FAULT HANDLER II - #3 Modified Clock Replacement
-			//Your code is here
-			//Comment the following line
-			panic("page_fault_handler().REPLACEMENT is not implemented yet...!!");
-		}
+	    struct WorkingSetElement *victimWSElement = NULL;
+	    uint32 wsSize = LIST_SIZE(&(faulted_env->page_WS_list));
+	    if(wsSize < (faulted_env->page_WS_max_size))
+	    {
+	    	//TODO: [PROJECT'25.GM#3] FAULT HANDLER I - #3 placement
+	    	//Your code is here
+	    	//Comment the following line
+	    	//panic("page_fault_handler().PLACEMENT is not implemented yet...!!");
+	    	uint32 rounded_fault_va = ROUNDDOWN(fault_va, PAGE_SIZE);
+	    	/*int ret = alloc_page(faulted_env->env_page_directory, fault_va,
+	    			 PERM_WRITEABLE | PERM_USER, 1);
+	    	if (ret != 0) {
+	    		panic("Out of memory!");
+	    	}*/
+	    	struct FrameInfo *p = NULL;
+			allocate_frame(&p) ;
+			map_frame(faulted_env->env_page_directory,p,fault_va,PERM_USER | PERM_WRITEABLE);
+	    	bool ok = 1;
+	    	int disk_ret = pf_read_env_page(faulted_env, (void*)rounded_fault_va);
+	    	if (disk_ret ==E_PAGE_NOT_EXIST_IN_PF) {
+	    		//page not on disk
+	    		//check if its in user stack or user heap
+	    		if ((fault_va >= USTACKBOTTOM && fault_va < USTACKTOP)/* User stack */||
+	    				(fault_va >= USER_HEAP_START && fault_va < USER_HEAP_MAX))// User heap
+	    		{
+	    			// ok
+	    		}
+	    		else
+	    		{
+	    			//exit the process
+	    			//panic("bla bla bla  VA = 0x%x", fault_va);
+	    			ok = 0;
+	    			env_exit();
+	    		}
+	    	}
+	    	if(ok){
+	    		//create the ws element
+	    		//add it to the env ws list
+	    		struct WorkingSetElement *wsE = env_page_ws_list_create_element(faulted_env, fault_va);
+
+	    		// Insert it into the environment's WS list
+	    		LIST_INSERT_TAIL(&(faulted_env->page_WS_list), wsE);
+
+	    		// Update the last inserted pointer
+	    		if(LIST_SIZE(&(faulted_env->page_WS_list))==(faulted_env->page_WS_max_size)){
+	    			faulted_env->page_last_WS_element =LIST_FIRST(&(faulted_env->page_WS_list));
+	    		}
+	    		else
+	    		{
+	    			faulted_env->page_last_WS_element = NULL;
+	    		}
+	    	}
+	    	env_page_ws_print(faulted_env);
+
+	    }
+	    else
+	    {
+	    	if (isPageReplacmentAlgorithmCLOCK())
+	    	{
+	    		//TODO: [PROJECT'25.IM#1] FAULT HANDLER II - #3 Clock Replacement
+	    		//Your code is here
+	    		//Comment the following line
+	    		panic("page_fault_handler().REPLACEMENT is not implemented yet...!!");
+	    	}
+	    	else if (isPageReplacmentAlgorithmLRU(PG_REP_LRU_TIME_APPROX))
+	    	{
+	    		//TODO: [PROJECT'25.IM#6] FAULT HANDLER II - #2 LRU Aging Replacement
+	    		//Your code is here
+	    		//Comment the following line
+	    		panic("page_fault_handler().REPLACEMENT is not implemented yet...!!");
+	    	}
+	    	else if (isPageReplacmentAlgorithmModifiedCLOCK())
+	    	{
+	    		//TODO: [PROJECT'25.IM#6] FAULT HANDLER II - #3 Modified Clock Replacement
+	    		//Your code is here
+	    		//Comment the following line
+	    		panic("page_fault_handler().REPLACEMENT is not implemented yet...!!");
+	    	}
+	    }
 	}
+#endif
 }
 
 void __page_fault_handler_with_buffering(struct Env * curenv, uint32 fault_va)
