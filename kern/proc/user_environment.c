@@ -919,15 +919,14 @@ void* create_user_kern_stack(uint32* ptr_user_page_directory)
     }
     pt_set_page_permissions(ptr_user_page_directory, (uint32)ptr, PERM_AVAILABLE,PERM_PRESENT );
     return ptr;
+	
     //Comment the following line
     //panic("create_user_kern_stack() is not implemented yet...!!");
-
     //allocate space for the user kernel stack.
     //remember to leave its bottom page as a GUARD PAGE (i.e. not mapped)
     //return a pointer to the start of the allocated space (including the GUARD PAGE)
 #endif
 }
-
 
 /*2024*/
 //===========================================================

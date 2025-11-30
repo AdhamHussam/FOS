@@ -84,7 +84,7 @@ static void set_allocation_size_info(uint32 start_va, uint32 pages_needed)
 static void find_and_remove_from_list(uint32 start_addr)
 {
     struct PageChunk *item;
-    LIST_FOREACH(item, &kheap_page_free_list) {
+    LIST_FOREACH_SAFE(item, &kheap_page_free_list,PageChunk) {
         if (item->start == start_addr) {
             LIST_REMOVE(&kheap_page_free_list, item);
             free_block(item); // Free the metadata block of the list item

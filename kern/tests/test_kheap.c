@@ -327,7 +327,6 @@ bool freeSpaceInPageAlloc(int allocIndex)
 		kfree(ptr_allocations[allocIndex]);
 	}
 	if ((freeDiskFrames - pf_calculate_free_frames()) != 0) { correct = 0; cprintf("%d.1 Page file is changed while it's not expected to. (pages are wrongly allocated/de-allocated in PageFile)\n", allocIndex); }
-	// here 
 	if ((sys_calculate_free_frames() - freeFrames) < expectedNumOfFrames) { correct = 0; cprintf("$d.2 Wrong kfree: pages in memory are not freed correctly\n", allocIndex); }
 	return correct;
 }
