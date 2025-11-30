@@ -318,7 +318,6 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 	    		else
 	    		{
 	    			//exit the process
-	    			//panic("bla bla bla  VA = 0x%x", fault_va);
 	    			ok = 0;
 	    			env_exit();
 	    		}
@@ -340,8 +339,6 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 	    			faulted_env->page_last_WS_element = NULL;
 	    		}
 	    	}
-	    	env_page_ws_print(faulted_env);
-
 	    }
 	    else
 	    {
