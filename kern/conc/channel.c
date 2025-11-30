@@ -31,7 +31,20 @@ void sleep(struct Channel *chan, struct kspinlock* lk)
 	//TODO: [PROJECT'25.IM#5] KERNEL PROTECTION: #1 CHANNEL - sleep
 	//Your code is here
 	//Comment the following line
-	panic("sleep() is not implemented yet...!!");
+	// panic("sleep() is not implemented yet...!!");
+	
+	acquire_kspinlock(&ProcessQueues.qlock);
+	release_kspinlock(lk);
+
+	struct Env* cur_env = get_cpu_proc();
+	cur_env->env_status = ENV_BLOCKED;
+
+	enqueue(&chan->queue, cur_env);
+	
+	sched();
+	release_kspinlock(&ProcessQueues.qlock);
+
+	acquire_kspinlock(lk);
 }
 
 //==================================================
@@ -46,7 +59,14 @@ void wakeup_one(struct Channel *chan)
 	//TODO: [PROJECT'25.IM#5] KERNEL PROTECTION: #2 CHANNEL - wakeup_one
 	//Your code is here
 	//Comment the following line
-	panic("wakeup_one() is not implemented yet...!!");
+	// panic("wakeup_one() is not implemented yet...!!");
+	
+	acquire_kspinlock(&ProcessQueues.qlock);
+	struct Env* target_env = dequeue(&chan->queue);
+
+	if (target_env != NULL)
+		sched_insert_ready(target_env);	
+	release_kspinlock(&ProcessQueues.qlock);
 }
 
 //====================================================
@@ -62,6 +82,13 @@ void wakeup_all(struct Channel *chan)
 	//TODO: [PROJECT'25.IM#5] KERNEL PROTECTION: #3 CHANNEL - wakeup_all
 	//Your code is here
 	//Comment the following line
-	panic("wakeup_all() is not implemented yet...!!");
+	// panic("wakeup_all() is not implemented yet...!!");
+	
+	acquire_kspinlock(&ProcessQueues.qlock);
+	struct Env* target_env;
+
+	while ((target_env = dequeue(&chan->queue)) != NULL)
+		sched_insert_ready(target_env);
+	release_kspinlock(&ProcessQueues.qlock);
 }
 

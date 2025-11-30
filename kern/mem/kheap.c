@@ -13,6 +13,7 @@ struct PageChunk_List kheap_page_free_list;
 struct PageChunkNode* kheap_free_tree_by_size = NULL;
 struct PageChunkNode* kheap_free_tree_by_addr = NULL;
 
+struct kspinlock Lk;
 //==================================================================================//
 //============================== GIVEN FUNCTIONS ===================================//
 //==================================================================================//
@@ -38,6 +39,7 @@ void kheap_init()
 	LIST_INIT(&kheap_page_free_list);
 	kheap_free_tree_by_size = NULL;
 	kheap_free_tree_by_addr = NULL;
+    init_kspinlock(&Lk, "Kernel Heap Lock");
 }
 
 //==============================================
@@ -237,15 +239,20 @@ void* kmalloc(unsigned int size)
 	//TODO: [PROJECT'25.GM#2] KERNEL HEAP - #1 kmalloc
 	//Your code is here
 	//Comment the following line
+    // panic("kmalloc() is not implemented yet...!!");
+    acquire_kspinlock(&Lk);
+
 	if(size == 0 ) 
 		return 0;
-	
+	void* ret = NULL;
 	if(size <= DYN_ALLOC_MAX_BLOCK_SIZE)  // block allocator
-        return alloc_block(size);
+        ret = alloc_block(size);
 	else {
-//		 return page_allocator(size);
-		return page_allocator_fast(size);
+	    ret = page_allocator_fast(size);
+//		ret =  page_allocator(size);
 	}
+    release_kspinlock(&Lk);
+    return ret;
 	//TODO: [PROJECT'25.BONUS#3] FAST PAGE ALLOCATOR
 }
 
@@ -340,7 +347,7 @@ void kfree(void* virtual_address)
 	//Comment the following line
 	// panic("kfree() is not implemented yet...!!");
     if (virtual_address == NULL) return;
-
+    acquire_kspinlock(&Lk);
     uint32 va = (uint32)virtual_address;
     // Block Allocator Range
     if (va >= KERNEL_HEAP_START && va < dynAllocEnd) 
@@ -350,6 +357,8 @@ void kfree(void* virtual_address)
         page_free(virtual_address);  
     else
         panic("kfree() called on an invalid address %x", va);
+
+    release_kspinlock(&Lk);
 }
 
 //=================================
