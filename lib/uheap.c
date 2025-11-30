@@ -1,5 +1,17 @@
 #include <inc/lib.h>
+#include <inc/queue.h>
 
+struct UserHeapChunk
+{
+    uint32 start_addr;
+    uint32 size;
+    LIST_ENTRY(UserHeapChunk) prev_next_info;
+};
+
+LIST_HEAD(UserHeapChunk_List, UserHeapChunk);
+
+struct UserHeapChunk_List FreeMemList;
+struct UserHeapChunk_List AllocMemList;
 //==================================================================================//
 //============================== GIVEN FUNCTIONS ===================================//
 //==================================================================================//
@@ -59,7 +71,79 @@ void* malloc(uint32 size)
 	//TODO: [PROJECT'25.IM#2] USER HEAP - #1 malloc
 	//Your code is here
 	//Comment the following line
-	panic("malloc() is not implemented yet...!!");
+	// panic("malloc() is not implemented yet...!!");
+	 if (size <= DYN_ALLOC_MAX_BLOCK_SIZE)
+	        return alloc_block(size);
+
+	uint32 size_in_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+	uint32 required_size = size_in_pages * PAGE_SIZE;// may need uint64
+
+	struct UserHeapChunk *iterator = NULL;
+	struct UserHeapChunk *target_chunk = NULL;
+
+	LIST_FOREACH(iterator, &FreeMemList)
+	{
+		if (iterator->size == required_size)
+		{
+			target_chunk = iterator;
+			break;
+		}
+	}
+
+	if (target_chunk == NULL)
+	{
+		LIST_FOREACH(iterator, &FreeMemList)
+		{
+			if (iterator->size > required_size)
+			{
+				if (target_chunk == NULL || iterator->size > target_chunk->size)
+					target_chunk = iterator;
+			}
+		}
+	}
+
+	if (target_chunk != NULL)
+	{
+		uint32 allocated_address = target_chunk->start_addr;
+
+		if (target_chunk->size > required_size)
+		{
+			struct UserHeapChunk *new_hole = (struct UserHeapChunk*)alloc_block(sizeof(struct UserHeapChunk));
+			if (new_hole != NULL)
+			{
+				new_hole->start_addr = target_chunk->start_addr + required_size;
+				new_hole->size = target_chunk->size - required_size;
+				LIST_INSERT_AFTER(&FreeMemList, target_chunk, new_hole);
+			}
+			target_chunk->size = required_size;
+		}
+
+		LIST_REMOVE(&FreeMemList, target_chunk);
+		LIST_INSERT_TAIL(&AllocMemList, target_chunk);
+
+		sys_allocate_user_mem(allocated_address, required_size);
+		return (void*)allocated_address;
+	}
+
+	if ((uheapPageAllocBreak + required_size) <= USER_HEAP_MAX)
+	{
+		uint32 allocated_address = uheapPageAllocBreak;
+		uheapPageAllocBreak += required_size;
+
+		sys_allocate_user_mem(allocated_address, required_size);
+
+		struct UserHeapChunk *new_alloc_node = (struct UserHeapChunk*)alloc_block(sizeof(struct UserHeapChunk));
+		if (new_alloc_node != NULL)
+		{
+			new_alloc_node->start_addr = allocated_address;
+			new_alloc_node->size = required_size;
+			LIST_INSERT_TAIL(&AllocMemList, new_alloc_node);
+		}
+
+		return (void*)allocated_address;
+	}
+
+	return NULL;
 }
 
 //=================================
