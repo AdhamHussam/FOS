@@ -154,7 +154,88 @@ void free(void* virtual_address)
 	//TODO: [PROJECT'25.IM#2] USER HEAP - #3 free
 	//Your code is here
 	//Comment the following line
-	panic("free() is not implemented yet...!!");
+	//panic("free() is not implemented yet...!!");
+	if ((uint32)virtual_address >= USER_HEAP_START && (uint32)virtual_address < dynAllocEnd)
+	    {
+	        free_block(virtual_address);
+	        return;
+	    }
+
+	    if ((uint32)virtual_address >= uheapPageAllocStart && (uint32)virtual_address < USER_HEAP_MAX)
+	    {
+	        struct UserHeapChunk *target_node = NULL;
+	        struct UserHeapChunk *iterator = NULL;
+
+	        LIST_FOREACH(iterator, &AllocMemList)
+	        {
+	            if (iterator->start_addr == (uint32)virtual_address)
+	            {
+	                target_node = iterator;
+	                break;
+	            }
+	        }
+
+	        if (target_node == NULL) return;
+
+	        LIST_REMOVE(&AllocMemList, target_node);
+	        sys_free_user_mem(target_node->start_addr, target_node->size);
+
+	        // COALESCING LOGIC
+	        struct UserHeapChunk *new_free_chunk = target_node;
+	        struct UserHeapChunk *temp = NULL;
+
+	        // Find insert position (Scan list)
+	        // We want to insert 'new_free_chunk' into FreeMemList.
+	        // Ideally, we keep the list sorted by address to make merging O(1) after insertion.
+	        // But for O(N) scan, we just insert at head and check all.
+
+	        LIST_INSERT_HEAD(&FreeMemList, new_free_chunk);
+
+	        // Merge Pass
+	        // We restart the loop after any merge to be safe
+	        int merged = 1;
+	        while(merged)
+	        {
+	            merged = 0;
+	            LIST_FOREACH(temp, &FreeMemList)
+	            {
+	                if (temp == new_free_chunk) continue;
+
+	                // Check Next Neighbor
+	                if (new_free_chunk->start_addr + new_free_chunk->size == temp->start_addr)
+	                {
+	                    new_free_chunk->size += temp->size;
+	                    LIST_REMOVE(&FreeMemList, temp);
+	                    free_block(temp);
+	                    merged = 1;
+	                    break;
+	                }
+
+	                // Check Prev Neighbor
+	                if (temp->start_addr + temp->size == new_free_chunk->start_addr)
+	                {
+	                    temp->size += new_free_chunk->size;
+	                    LIST_REMOVE(&FreeMemList, new_free_chunk);
+	                    free_block(new_free_chunk);
+	                    new_free_chunk = temp;
+	                    merged = 1;
+	                    break;
+	                }
+	            }
+	        }
+
+	        // Shrink Heap
+	        if (new_free_chunk->start_addr + new_free_chunk->size == uheapPageAllocBreak)
+	        {
+	            uheapPageAllocBreak = new_free_chunk->start_addr;
+	            LIST_REMOVE(&FreeMemList, new_free_chunk);
+	            free_block(new_free_chunk);
+	        }
+	    }
+	    else
+	    {
+	        panic("free: Invalid address");
+	    }
 }
 
 //=================================

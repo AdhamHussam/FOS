@@ -190,7 +190,33 @@ void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 	//TODO: [PROJECT'25.IM#2] USER HEAP - #4 free_user_mem
 	//Your code is here
 	//Comment the following line
-	panic("free_user_mem() is not implemented yet...!!");
+	//panic("free_user_mem() is not implemented yet...!!");
+	 uint32 end_address = virtual_address + size;
+
+	    for (uint32 va = virtual_address; va < end_address; va += PAGE_SIZE)
+	    {
+
+	        pf_remove_env_page(e, va);
+	        pt_set_page_permissions(e->env_page_directory, va, 0,PERM_UHPAGE);
+
+	        uint32 *ptr_page_table = NULL;
+	        get_page_table(e->env_page_directory, va, &ptr_page_table);
+
+	        if (ptr_page_table != NULL)
+	        {
+	            uint32 entry = ptr_page_table[PTX(va)];
+
+	            if (entry & PERM_PRESENT)
+	            {
+	                env_page_ws_invalidate(e, va);
+	            }
+	            else
+	            {
+
+	                unmap_frame(e->env_page_directory, va);
+	            }
+	        }
+	    }
 }
 
 //=====================================
