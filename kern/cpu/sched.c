@@ -409,9 +409,28 @@ void clock_interrupt_handler(struct Trapframe* tf)
 //===================================================================
 void update_WS_time_stamps()
 {
-	//TODO: [PROJECT'25.IM#6] FAULT HANDLER II - #1 update_WS_time_stamps
-	//Your code is here
-	//Comment the following line
-	panic("update_WS_time_stamps is not implemented yet...!!");
+    //TODO: [PROJECT'25.IM#6] FAULT HANDLER II - #1 update_WS_time_stamps
+    //Your code is here
+    //Comment the following line
+    //panic("update_WS_time_stamps is not implemented yet...!!");
+
+    //loop over all WSEs
+    struct WorkingSetElement *wse = NULL ;
+    struct Env* env = get_cpu_proc();
+    LIST_FOREACH_SAFE(wse, &env->page_WS_list,WorkingSetElement)
+    {
+        //shift right once
+        wse->time_stamp =  wse->time_stamp >> 1;
+        uint32 perms = pt_get_page_permissions(env->env_page_directory,wse->virtual_address);
+        uint32 usedbit = 0;
+        if (perms & PERM_USED)
+            usedbit = 1;
+        else
+            usedbit = 0;
+        //add the used bit to the left
+        wse->time_stamp =(usedbit << 31)|wse->time_stamp;
+        //clear the used bit
+        pt_set_page_permissions(env->env_page_directory,wse->virtual_address , 0 , PERM_USED);
+    }
 
 }

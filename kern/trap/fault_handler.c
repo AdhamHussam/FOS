@@ -354,7 +354,35 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 	    		//TODO: [PROJECT'25.IM#6] FAULT HANDLER II - #2 LRU Aging Replacement
 	    		//Your code is here
 	    		//Comment the following line
-	    		panic("page_fault_handler().REPLACEMENT is not implemented yet...!!");
+	    		//panic("page_fault_handler().REPLACEMENT is not implemented yet...!!");
+
+	    		//get the page with the lowest time stamp value
+
+	    		struct WorkingSetElement *victim = faulted_env->page_last_WS_element;
+	    		struct WorkingSetElement *curwse = LIST_NEXT(victim);
+	    		LIST_FOREACH_SAFE(curwse, &faulted_env->page_WS_list,WorkingSetElement)
+	    		{
+	    			if(curwse->time_stamp< victim->time_stamp){
+	    				victim = curwse;
+	    			}
+	    		}
+	    		uint32 perms = pt_get_page_permissions(faulted_env->env_page_directory, victim->virtual_address);
+	    		if ((perms & PERM_MODIFIED )) {
+	    			uint32* pte;
+	    			struct FrameInfo* frameinfo =get_frame_info(faulted_env->env_page_directory, victim->virtual_address, &pte);
+	    			int ret = pf_update_env_page(faulted_env, victim->virtual_address, frameinfo);
+	    			if (ret == E_NO_PAGE_FILE_SPACE) {
+	    				panic("NO SPACE IN PAGE FILE CAN'T RIGHT MODIFIED PAGE");
+	    			}
+
+	    			//Clear modified bit after writing to disk
+	    			pt_set_page_permissions(faulted_env->env_page_directory, victim->virtual_address, 0, PERM_MODIFIED);
+	    		}
+	    		LIST_REMOVE(&faulted_env->page_WS_list, victim);
+	    		unmap_frame(faulted_env->env_page_directory, victim->virtual_address);
+	    		kfree((void*)victim);
+
+	    		page_fault_handler(faulted_env, fault_va);
 	    	}
 	    	else if (isPageReplacmentAlgorithmModifiedCLOCK())
 	    	{
