@@ -76,7 +76,7 @@ void* malloc(uint32 size)
 	        return alloc_block(size);
 
 	uint32 size_in_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
-	uint32 required_size = size_in_pages * PAGE_SIZE;// may need uint64
+	uint64 required_size = size_in_pages * PAGE_SIZE;// may need uint64
 
 	struct UserHeapChunk *iterator = NULL;
 	struct UserHeapChunk *target_chunk = NULL;
@@ -125,7 +125,7 @@ void* malloc(uint32 size)
 		return (void*)allocated_address;
 	}
 
-	if ((uheapPageAllocBreak + required_size) <= USER_HEAP_MAX)
+	if ((uheapPageAllocBreak + required_size ) <= USER_HEAP_MAX )
 	{
 		uint32 allocated_address = uheapPageAllocBreak;
 		uheapPageAllocBreak += required_size;
