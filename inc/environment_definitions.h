@@ -192,6 +192,7 @@ struct Env {
 	//2020
 	uint32 nPageIn, nPageOut, nNewPageAdded;
 	uint32 nClocks ;
+	uint32 starvation_counter; 
 
 };
 

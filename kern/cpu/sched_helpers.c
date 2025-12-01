@@ -10,6 +10,8 @@
 #include <kern/cmd/command_prompt.h>
 #include <kern/cpu/cpu.h>
 
+extern uint32 starvation_threshold;
+
 //void on_clock_update_WS_time_stamps();
 extern void cleanup_buffers(struct Env* e);
 //================
@@ -693,12 +695,38 @@ void env_set_priority(int envID, int priority)
 	//TODO: [PROJECT'25.IM#4] CPU SCHEDULING - #1 env_set_priority
 	//Your code is here
 	//Comment the following line
-	panic("env_set_priority() is not implemented yet...!!");
+	// panic("env_set_priority() is not implemented yet...!!");
+	
+	struct Env *currEnv;
+    bool checkperm=0;
+    int resp = envid2env(envID,&currEnv,checkperm);
+    if(resp==E_BAD_ENV) return; //env not found
+    if (currEnv->priority == priority) return; // no need to change
+
+    //check if ready
+    if(currEnv->env_status==ENV_READY){
+        acquire_kspinlock(&ProcessQueues.qlock);
+
+        sched_remove_ready(currEnv);
+
+        currEnv->priority = priority;
+        currEnv->starvation_counter = 0;
+
+        sched_insert_ready(currEnv);
+
+        release_kspinlock(&ProcessQueues.qlock);
+    }
+	else{
+        currEnv->priority = priority;
+        currEnv->starvation_counter = 0;
+    }
 }
 void sched_set_starv_thresh(uint32 starvThresh)
 {
 	//TODO: [PROJECT'25.IM#4] CPU SCHEDULING - #1 sched_set_starv_thresh
 	//Your code is here
 	//Comment the following line
-	panic("sched_set_starv_thresh() is not implemented yet...!!");
+	// panic("sched_set_starv_thresh() is not implemented yet...!!");
+
+	starvation_threshold = starvThresh;
 }

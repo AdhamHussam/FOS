@@ -11,7 +11,7 @@
 #include <kern/cpu/cpu.h>
 #include <kern/cpu/picirq.h>
 
-
+uint32 starvation_threshold = 0;
 uint32 isSchedMethodRR(){return (scheduler_method == SCH_RR);}
 uint32 isSchedMethodMLFQ(){return (scheduler_method == SCH_MLFQ); }
 uint32 isSchedMethodBSD(){return(scheduler_method == SCH_BSD); }
@@ -225,8 +225,21 @@ void sched_init_PRIRR(uint8 numOfPriorities, uint8 quantum, uint32 starvThresh)
 		//TODO: [PROJECT'25.IM#4] CPU SCHEDULING - #2 sched_init_PRIRR
 		//Your code is here
 		//Comment the following line
-		panic("sched_init_PRIRR() is not implemented yet...!!");
+		// panic("sched_init_PRIRR() is not implemented yet...!!");
 
+		starvation_threshold = starvThresh;
+        num_of_ready_queues = numOfPriorities;
+        #if USE_KHEAP
+                sched_delete_ready_queues();
+                ProcessQueues.env_ready_queues = kmalloc(num_of_ready_queues * sizeof(struct Env_Queue));
+                quantums = kmalloc(num_of_ready_queues * sizeof(uint8));
+        #endif
+        for (int i = 0; i < num_of_ready_queues; i++)
+		{
+			init_queue(&(ProcessQueues.env_ready_queues[i]));
+			quantums[i] = quantum;
+		}
+        kclock_set_quantum(quantum);
 
 
 	}
@@ -313,7 +326,30 @@ struct Env* fos_scheduler_PRIRR()
 	//TODO: [PROJECT'25.IM#4] CPU SCHEDULING - #3 fos_scheduler_PRIRR
 	//Your code is here
 	//Comment the following line
-	panic("fos_scheduler_PRIRR() is not implemented yet...!!");
+	// panic("fos_scheduler_PRIRR() is not implemented yet...!!");
+	
+	struct Env *cur_env = get_cpu_proc();
+    if (cur_env != NULL)
+	{
+		sched_insert_ready(cur_env);
+	}
+
+    for (int i = 0; i < num_of_ready_queues; i++)
+	{
+		if (queue_size(&(ProcessQueues.env_ready_queues[i])) > 0)
+		{
+			struct Env *next_env = dequeue(&(ProcessQueues.env_ready_queues[i]));
+
+			kclock_set_quantum(quantums[i]);
+
+			next_env->starvation_counter = 0;
+
+			return next_env;
+		}
+	}
+
+	return NULL;
+	
 }
 
 //========================================
@@ -327,9 +363,18 @@ void clock_interrupt_handler(struct Trapframe* tf)
 		//TODO: [PROJECT'25.IM#4] CPU SCHEDULING - #4 clock_interrupt_handler
 		//Your code is here
 		//Comment the following line
-		panic("clock_interrupt_handler() is not implemented yet...!!");
+		// panic("clock_interrupt_handler() is not implemented yet...!!");
 
-
+		struct Env *curr_env;
+        for (int i = 1; i < num_of_ready_queues; i++){
+            LIST_FOREACH(curr_env,&ProcessQueues.env_ready_queues[i]){
+				if (curr_env->starvation_counter >= starvation_threshold)
+				{
+					env_set_priority(curr_env->env_id,i-1);
+				}
+				curr_env->starvation_counter++;
+            }
+        }
 
 	}
 

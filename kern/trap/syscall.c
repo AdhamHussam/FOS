@@ -508,6 +508,11 @@ int sys_get_optimal_num_faults()
 /* ETC... SYSTEM CALLS */
 /*******************************/
 
+void sys_env_set_priority(int envID,int priority)
+{
+    env_set_priority(envID,priority);
+}
+
 struct uint64 sys_get_virtual_time()
 {
 	struct uint64 t = get_virtual_time();
@@ -541,7 +546,11 @@ uint32 syscall(uint32 syscallno, uint32 a1, uint32 a2, uint32 a3, uint32 a4, uin
 	/*2023*/
 	//TODO: [PROJECT'25.IM#4] CPU SCHEDULING - #1 System Calls - Add suitable code here
 	//Your code is here
-
+	
+	case SYS_env_set_priority:
+        	sys_env_set_priority(a1, a2);
+        return 0;
+        break;	
 	//=============================================
 	case SYS_allocate_user_mem:
 		sys_allocate_user_mem(a1, a2);

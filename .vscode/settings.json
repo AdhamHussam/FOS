@@ -3,6 +3,7 @@
         "queue.h": "c",
         "memlayout.h": "c",
         "test_kheap.h": "c",
-        "kheap_bst.h": "c"
+        "kheap_bst.h": "c",
+        "command_prompt.h": "c"
     }
 }
