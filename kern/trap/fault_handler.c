@@ -284,7 +284,78 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 		//TODO: [PROJECT'25.IM#1] FAULT HANDLER II - #1 Optimal Reference Stream
 		//Your code is here
 		//Comment the following line
-		panic("page_fault_handler().REPLACEMENT is not implemented yet...!!");
+		//panic("page_fault_handler().REPLACEMENT is not implemented yet...!!");
+		struct WorkingSetElement *wsE= env_page_ws_list_create_element(faulted_env, fault_va);;
+
+		//check if its in memory
+		//see if the frame memory is not null ? else just set its present
+		uint32 *ptr_page_table = NULL;
+		struct FrameInfo *frameinfo = get_frame_info(faulted_env->env_page_directory,fault_va,&ptr_page_table);
+		if(frameinfo==NULL){
+			//page not in memory
+			//create the frame for it
+			struct FrameInfo *p = NULL;
+			allocate_frame(&p) ;
+			map_frame(faulted_env->env_page_directory,p,fault_va,PERM_USER | PERM_WRITEABLE);
+			//read from disk
+			int disk_ret = pf_read_env_page(faulted_env, (void*)fault_va);
+			if (disk_ret ==E_PAGE_NOT_EXIST_IN_PF) {
+				if ((fault_va >= USTACKBOTTOM && fault_va < USTACKTOP)||
+						(fault_va >= USER_HEAP_START && fault_va < USER_HEAP_MAX))
+				{
+					// ok
+				}
+				else
+				{
+					//exit the process
+					panic("SHOULDN'T HAPPEN");
+					env_exit();
+				}
+			}
+		}
+		pt_set_page_permissions(faulted_env->env_page_directory,fault_va, PERM_PRESENT,0 );
+		//check active list size
+		uint32 wsSize = LIST_SIZE(&(faulted_env->ActiveList));
+		//cprintf("wsSize = %u, ActiveListSize = %u\n", wsSize, faulted_env->page_WS_max_size);
+		if(wsSize < (faulted_env->page_WS_max_size)){
+			//add the new one
+			LIST_INSERT_TAIL(&(faulted_env->ActiveList),wsE);
+		}
+		else{
+			{
+				struct WorkingSetElement *curwse = NULL;
+				cprintf("active working before deletion: ");
+				LIST_FOREACH_SAFE(curwse, &(faulted_env->ActiveList),WorkingSetElement)
+				{
+					cprintf("%08x ", curwse->virtual_address);
+				}
+				cprintf("\n");
+			}
+			//remove all pages from active set , free the working set elements ,set present to 0
+			//add the new one afterwards
+			struct WorkingSetElement *curwse = NULL;
+			LIST_FOREACH_SAFE(curwse, &(faulted_env->ActiveList),WorkingSetElement)
+			{
+				//clear present bit
+				pt_set_page_permissions(faulted_env->env_page_directory,curwse->virtual_address,0, PERM_PRESENT );
+				LIST_REMOVE(&faulted_env->ActiveList, curwse);
+				kfree((void*)curwse);
+			}
+			//add new one to the list
+			LIST_INSERT_TAIL(&(faulted_env->ActiveList),wsE);
+		}
+		//add to reference stream
+		struct PageRefElement *ref = kmalloc(sizeof(struct PageRefElement));
+		ref->virtual_address =ROUNDDOWN(fault_va, PAGE_SIZE);
+		LIST_INSERT_TAIL(&(faulted_env->referenceStreamList),ref);
+//		struct PageRefElement *cur= NULL;
+//		cprintf("Reference stream: ");
+//		LIST_FOREACH_SAFE(cur, &faulted_env->referenceStreamList, PageRefElement)
+//		{
+//		    cprintf("%08x ", cur->virtual_address);
+//		}
+//
+//		cprintf("\n");
 	}
 	else
 	{
@@ -328,7 +399,7 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 	    		//add it to the env ws list
 
 	    		if(faulted_env->page_last_WS_element != NULL) {
-	    			//preserve fifo order
+	    			//preserve FIFO order
 	    			LIST_INSERT_BEFORE(&(faulted_env->page_WS_list),faulted_env->page_last_WS_element,wsE);
 	    		}
 	    		else{

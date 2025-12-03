@@ -449,6 +449,27 @@ struct Env* env_create(char* user_program_name, unsigned int page_WS_size, unsig
 		//	cprintf("Table working set after loading the program...\n");
 		//	env_table_ws_print(e);
 	}
+	//MODIFICATION FOR ACTIVE LIST
+	struct WorkingSetElement* wse ;
+	LIST_FOREACH(wse, &(e->page_WS_list))
+	{
+
+		struct WorkingSetElement* activewse = kmalloc(sizeof(struct WorkingSetElement));
+		if (activewse == NULL)
+			panic("Cannot allocate copy of WSE");
+
+		activewse->virtual_address = wse->virtual_address;
+		activewse->empty = wse->empty;
+		activewse->time_stamp = wse->time_stamp;
+		activewse->sweeps_counter = wse->sweeps_counter;
+
+		activewse->prev_next_info.le_next = NULL;
+		activewse->prev_next_info.le_prev = NULL;
+
+		LIST_INSERT_TAIL(&(e->ActiveList), activewse);
+
+	}
+	//MODIFICATIONS END
 	return e;
 }
 
@@ -919,7 +940,7 @@ void* create_user_kern_stack(uint32* ptr_user_page_directory)
     }
     pt_set_page_permissions(ptr_user_page_directory, (uint32)ptr, PERM_AVAILABLE,PERM_PRESENT );
     return ptr;
-	
+
     //Comment the following line
     //panic("create_user_kern_stack() is not implemented yet...!!");
     //allocate space for the user kernel stack.
