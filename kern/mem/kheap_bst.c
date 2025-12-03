@@ -5,10 +5,6 @@
 extern struct PageChunkNode* kheap_free_tree_by_size;
 extern struct PageChunkNode* kheap_free_tree_by_addr;
 
-//==============//
-//  Size Tree   //
-//==============//
-
 void bst_insert_by_size(struct PageChunkNode* node) {
     node->left_size = node->right_size = node->parent_size = NULL;
     if (kheap_free_tree_by_size == NULL) {
