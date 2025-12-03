@@ -580,6 +580,7 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 #endif
 }
 struct WorkingSetElement* getVictimUsedMod(struct Env *faulted_env,struct WorkingSetElement *start){
+#if USE_KHEAP
 	struct WorkingSetElement *curwse = start;
 	do{
 		int perms = pt_get_page_permissions(faulted_env->env_page_directory, curwse->virtual_address);
@@ -595,9 +596,11 @@ struct WorkingSetElement* getVictimUsedMod(struct Env *faulted_env,struct Workin
 		}
 
 	}while(curwse != start);
+#endif
 	return NULL;
 }
 struct WorkingSetElement* getVictimUsed(struct Env *faulted_env,struct WorkingSetElement *start){
+#if USE_KHEAP
 	struct WorkingSetElement *curwse = start;
 	do{
 		int perms = pt_get_page_permissions(faulted_env->env_page_directory, curwse->virtual_address);
@@ -616,6 +619,7 @@ struct WorkingSetElement* getVictimUsed(struct Env *faulted_env,struct WorkingSe
 			curwse =LIST_FIRST(&(faulted_env->page_WS_list));
 		}
 	}while(curwse != start);
+#endif
 	return NULL;
 }
 

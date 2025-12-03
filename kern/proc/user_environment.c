@@ -450,6 +450,7 @@ struct Env* env_create(char* user_program_name, unsigned int page_WS_size, unsig
 		//	env_table_ws_print(e);
 	}
 	//MODIFICATION FOR ACTIVE LIST
+#if USE_KHEAP
 	struct WorkingSetElement* wse ;
 	LIST_FOREACH_SAFE(wse, &(e->page_WS_list), WorkingSetElement)
 	{
@@ -469,6 +470,7 @@ struct Env* env_create(char* user_program_name, unsigned int page_WS_size, unsig
 		LIST_INSERT_TAIL(&(e->ActiveList), activewse);
 
 	}
+#endif
 	//MODIFICATIONS END
 	return e;
 }
@@ -947,7 +949,9 @@ void* create_user_kern_stack(uint32* ptr_user_page_directory)
     //remember to leave its bottom page as a GUARD PAGE (i.e. not mapped)
     //return a pointer to the start of the allocated space (including the GUARD PAGE)
 #endif
+	return 0;
 }
+
 
 /*2024*/
 //===========================================================

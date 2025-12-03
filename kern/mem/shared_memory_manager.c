@@ -135,8 +135,6 @@ struct Share* alloc_share(int32 ownerID, char* shareName, uint32 size, uint8 isW
 	//Comment the following line
 	//panic("alloc_share() is not implemented yet...!!");
 }
-
-
 //=========================
 // [4] Create Share Object:
 //=========================
@@ -146,6 +144,8 @@ int create_shared_object(int32 ownerID, char* shareName, uint32 size, uint8 isWr
 	//Your code is here
 	//Comment the following line
 	//panic("create_shared_object() is not implemented yet...!!");
+
+#if USE_KHEAP						//Number of prepaged VAs
 
 	struct Env* myenv = get_cpu_proc(); //The calling environment
 
@@ -181,6 +181,9 @@ int create_shared_object(int32 ownerID, char* shareName, uint32 size, uint8 isWr
 	//	a) ID of the shared object (its VA after masking out its msb) if success
 	//	b) E_SHARED_MEM_EXISTS if the shared object already exists
 	//	c) E_NO_SHARE if failed to create a shared object
+#else
+	return 0;
+#endif
 }
 
 
@@ -193,7 +196,7 @@ int get_shared_object(int32 ownerID, char* shareName, void* virtual_address)
 	//Your code is here
 	//Comment the following line
 	//panic("get_shared_object() is not implemented yet...!!");
-
+#if USE_KHEAP
 	struct Env* myenv = get_cpu_proc(); //The calling environment
 	struct Share* SHOBJ = find_share(ownerID , shareName);
 	if(SHOBJ == NULL)
@@ -218,6 +221,8 @@ int get_shared_object(int32 ownerID, char* shareName, void* virtual_address)
 	// RETURN:
 	//	a) ID of the shared object (its VA after masking out its msb) if success
 	//	b) E_SHARED_MEM_NOT_EXISTS if the shared object is not exists
+#endif
+	return 0;
 
 }
 //==================================================================================//

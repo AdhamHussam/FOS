@@ -413,8 +413,8 @@ void update_WS_time_stamps()
     //Your code is here
     //Comment the following line
     //panic("update_WS_time_stamps is not implemented yet...!!");
-
-    //loop over all WSEs
+#if USE_KHEAP
+						//Number of prepaged VAs    //loop over all WSEs
     struct WorkingSetElement *wse = NULL ;
     struct Env* env = get_cpu_proc();
     LIST_FOREACH_SAFE(wse, &env->page_WS_list,WorkingSetElement)
@@ -432,5 +432,7 @@ void update_WS_time_stamps()
         //clear the used bit
         pt_set_page_permissions(env->env_page_directory,wse->virtual_address , 0 , PERM_USED);
     }
-
+#else
+	
+#endif
 }
