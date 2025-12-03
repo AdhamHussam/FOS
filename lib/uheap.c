@@ -251,8 +251,81 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable)
 
 	//TODO: [PROJECT'25.IM#3] SHARED MEMORY - #2 smalloc
 	//Your code is here
+	uint32 size_in_pages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+	uint32 required_size = size_in_pages * PAGE_SIZE;
+
+	struct UserHeapChunk *iterator = NULL;
+	struct UserHeapChunk *target_chunk = NULL;
+
+	LIST_FOREACH(iterator, &FreeMemList)
+	{
+		if (iterator->size == required_size)
+		{
+			target_chunk = iterator;
+			break;
+		}
+	}
+
+	if (target_chunk == NULL)
+	{
+		LIST_FOREACH(iterator, &FreeMemList)
+		{
+			if (iterator->size > required_size)
+			{
+				if (target_chunk == NULL || iterator->size > target_chunk->size)
+					target_chunk = iterator;
+			}
+		}
+	}
+
+	uint32 allocated_address = 0;
+
+	if (target_chunk != NULL)
+	{
+		allocated_address = target_chunk->start_addr;
+
+		if (target_chunk->size > required_size)
+		{
+			struct UserHeapChunk *new_hole = (struct UserHeapChunk*)alloc_block(sizeof(struct UserHeapChunk));
+			if (new_hole != NULL)
+			{
+				new_hole->start_addr = target_chunk->start_addr + required_size;
+				new_hole->size = target_chunk->size - required_size;
+				LIST_INSERT_AFTER(&FreeMemList, target_chunk, new_hole);
+			}
+			target_chunk->size = required_size;
+		}
+
+		LIST_REMOVE(&FreeMemList, target_chunk);
+		LIST_INSERT_TAIL(&AllocMemList, target_chunk);
+	}
+
+	else if ((uheapPageAllocBreak + required_size) <= USER_HEAP_MAX)
+	{
+		allocated_address = uheapPageAllocBreak;
+		uheapPageAllocBreak += required_size;
+
+		struct UserHeapChunk *new_alloc_node = (struct UserHeapChunk*)alloc_block(sizeof(struct UserHeapChunk));
+		if (new_alloc_node != NULL)
+		{
+			new_alloc_node->start_addr = allocated_address;
+			new_alloc_node->size = required_size;
+			LIST_INSERT_TAIL(&AllocMemList, new_alloc_node);
+		}
+	}
+	else
+	{
+		return NULL;
+	}
+
+	int ShID = sys_create_shared_object(sharedVarName, size, isWritable, (void*)allocated_address);
+
+	if(ShID < 0)
+		return NULL;
+
+	return (void*)allocated_address;
 	//Comment the following line
-	panic("smalloc() is not implemented yet...!!");
+	//panic("smalloc() is not implemented yet...!!");
 }
 
 //========================================
@@ -264,13 +337,89 @@ void* sget(int32 ownerEnvID, char *sharedVarName)
 	//DON'T CHANGE THIS CODE========================================
 	uheap_init();
 	//==============================================================
+	int SZ = sys_size_of_shared_object(ownerEnvID , sharedVarName);
+	if (SZ == E_SHARED_MEM_NOT_EXISTS)
+		return NULL;
+
+	uint32 size_in_pages = ROUNDUP(SZ, PAGE_SIZE) / PAGE_SIZE;
+	uint32 required_size = size_in_pages * PAGE_SIZE;
+
+	struct UserHeapChunk *iterator = NULL;
+	struct UserHeapChunk *target_chunk = NULL;
+
+	LIST_FOREACH(iterator, &FreeMemList)
+	{
+		if (iterator->size == required_size)
+		{
+			target_chunk = iterator;
+			break;
+		}
+	}
+
+	if (target_chunk == NULL)
+	{
+		LIST_FOREACH(iterator, &FreeMemList)
+		{
+			if (iterator->size > required_size)
+			{
+				if (target_chunk == NULL || iterator->size > target_chunk->size)
+					target_chunk = iterator;
+			}
+		}
+	}
+
+	uint32 allocated_address = 0;
+
+	if (target_chunk != NULL)
+	{
+		allocated_address = target_chunk->start_addr;
+
+		if (target_chunk->size > required_size)
+		{
+			struct UserHeapChunk *new_hole = (struct UserHeapChunk*)alloc_block(sizeof(struct UserHeapChunk));
+			if (new_hole != NULL)
+			{
+				new_hole->start_addr = target_chunk->start_addr + required_size;
+				new_hole->size = target_chunk->size - required_size;
+				LIST_INSERT_AFTER(&FreeMemList, target_chunk, new_hole);
+			}
+			target_chunk->size = required_size;
+		}
+
+		LIST_REMOVE(&FreeMemList, target_chunk);
+		LIST_INSERT_TAIL(&AllocMemList, target_chunk);
+	}
+
+	else if ((uheapPageAllocBreak + required_size) <= USER_HEAP_MAX)
+	{
+		allocated_address = uheapPageAllocBreak;
+		uheapPageAllocBreak += required_size;
+
+		struct UserHeapChunk *new_alloc_node = (struct UserHeapChunk*)alloc_block(sizeof(struct UserHeapChunk));
+		if (new_alloc_node != NULL)
+		{
+			new_alloc_node->start_addr = allocated_address;
+			new_alloc_node->size = required_size;
+			LIST_INSERT_TAIL(&AllocMemList, new_alloc_node);
+		}
+	}
+	else
+	{
+		return NULL;
+	}
+
+	int ShID = sys_get_shared_object(ownerEnvID, sharedVarName, (void*)allocated_address);
+
+	if(ShID < 0)
+		return NULL;
+
+	return (void*)allocated_address;
 
 	//TODO: [PROJECT'25.IM#3] SHARED MEMORY - #4 sget
 	//Your code is here
 	//Comment the following line
-	panic("sget() is not implemented yet...!!");
+	//panic("sget() is not implemented yet...!!");
 }
-
 
 //==================================================================================//
 //============================== BONUS FUNCTIONS ===================================//

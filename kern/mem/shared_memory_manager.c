@@ -106,8 +106,34 @@ struct Share* alloc_share(int32 ownerID, char* shareName, uint32 size, uint8 isW
 {
 	//TODO: [PROJECT'25.IM#3] SHARED MEMORY - #1 alloc_share
 	//Your code is here
+	struct Share* shareObj = (struct Share*)kmalloc(sizeof(struct Share));
+	if(shareObj == NULL)
+		return NULL;
+	shareObj->ownerID = ownerID;
+	shareObj->size = size;
+	shareObj->references = 1;
+	shareObj->isWritable = isWritable;
+	strcpy(shareObj->name , shareName);
+
+
+	//ID --> VA
+	//masking --> 0111 so its 7 instead of F
+	shareObj->ID = (unsigned int)shareObj & 0x7FFFFFFF;
+
+	uint32 number_OF_frames = ROUNDUP(size,PAGE_SIZE)/PAGE_SIZE;
+	shareObj->framesStorage = (struct FrameInfo**)kmalloc(number_OF_frames*sizeof(struct FrameInfo*));
+
+	if(shareObj->framesStorage == NULL)
+	{
+		kfree(shareObj);
+		return NULL;
+	}
+
+	memset(shareObj->framesStorage, 0, number_OF_frames* sizeof(struct FrameInfo*));
+
+	return shareObj;
 	//Comment the following line
-	panic("alloc_share() is not implemented yet...!!");
+	//panic("alloc_share() is not implemented yet...!!");
 }
 
 
@@ -119,10 +145,36 @@ int create_shared_object(int32 ownerID, char* shareName, uint32 size, uint8 isWr
 	//TODO: [PROJECT'25.IM#3] SHARED MEMORY - #3 create_shared_object
 	//Your code is here
 	//Comment the following line
-	panic("create_shared_object() is not implemented yet...!!");
+	//panic("create_shared_object() is not implemented yet...!!");
 
 	struct Env* myenv = get_cpu_proc(); //The calling environment
 
+	struct Share* SHOBJ = find_share(ownerID , shareName);
+	if(SHOBJ != NULL)
+		return E_SHARED_MEM_EXISTS;
+
+	struct Share* NowShObj = alloc_share(ownerID , shareName , size , isWritable);
+	if(NowShObj == NULL )
+		return E_NO_SHARE;
+
+	acquire_kspinlock(&AllShares.shareslock);
+	LIST_INSERT_TAIL(&AllShares.shares_list, NowShObj);
+	release_kspinlock(&AllShares.shareslock);
+
+	uint32 number_OF_pages = ROUNDUP(size,PAGE_SIZE)/PAGE_SIZE;
+	uint32 nowVA = (uint32)virtual_address;
+	for(uint32 i = 0 ; i < number_OF_pages; i++)
+	{
+		nowVA = (uint32)virtual_address + i * PAGE_SIZE;
+		struct FrameInfo* FrameInfoPtr = NULL;
+
+		allocate_frame(&FrameInfoPtr);
+		map_frame(myenv->env_page_directory, FrameInfoPtr, nowVA, PERM_WRITEABLE | PERM_USER | PERM_PRESENT);
+
+		NowShObj->framesStorage[i] = FrameInfoPtr;
+	}
+
+	return NowShObj->ID;
 	// This function should create the shared object at the given virtual address with the given size
 	// and return the ShareObjectID
 	// RETURN:
@@ -140,10 +192,26 @@ int get_shared_object(int32 ownerID, char* shareName, void* virtual_address)
 	//TODO: [PROJECT'25.IM#3] SHARED MEMORY - #5 get_shared_object
 	//Your code is here
 	//Comment the following line
-	panic("get_shared_object() is not implemented yet...!!");
+	//panic("get_shared_object() is not implemented yet...!!");
 
 	struct Env* myenv = get_cpu_proc(); //The calling environment
+	struct Share* SHOBJ = find_share(ownerID , shareName);
+	if(SHOBJ == NULL)
+		return E_SHARED_MEM_EXISTS;
 
+	uint32 number_OF_pages = ROUNDUP(SHOBJ->size,PAGE_SIZE)/PAGE_SIZE;
+	uint32 nowVA = (uint32)virtual_address;
+	for(uint32 i = 0 ; i < number_OF_pages; i++)
+	{
+		nowVA = (uint32)virtual_address + i * PAGE_SIZE;
+		struct FrameInfo* FrameInfoPtr =  SHOBJ->framesStorage[i];
+		map_frame(myenv->env_page_directory, FrameInfoPtr, nowVA, ((SHOBJ->isWritable) ? PERM_WRITEABLE : 0) | PERM_USER | PERM_PRESENT);
+
+	}
+	acquire_kspinlock(&AllShares.shareslock);
+	SHOBJ->references++;
+	release_kspinlock(&AllShares.shareslock);
+	return SHOBJ->ID;
 	// 	This function should share the required object in the heap of the current environment
 	//	starting from the given virtual_address with the specified permissions of the object: read_only/writable
 	// 	and return the ShareObjectID
@@ -152,7 +220,6 @@ int get_shared_object(int32 ownerID, char* shareName, void* virtual_address)
 	//	b) E_SHARED_MEM_NOT_EXISTS if the shared object is not exists
 
 }
-
 //==================================================================================//
 //============================== BONUS FUNCTIONS ===================================//
 //==================================================================================//
