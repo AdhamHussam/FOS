@@ -451,12 +451,12 @@ struct Env* env_create(char* user_program_name, unsigned int page_WS_size, unsig
 	}
 	//MODIFICATION FOR ACTIVE LIST
 	struct WorkingSetElement* wse ;
-	LIST_FOREACH(wse, &(e->page_WS_list))
+	LIST_FOREACH_SAFE(wse, &(e->page_WS_list), WorkingSetElement)
 	{
 
 		struct WorkingSetElement* activewse = kmalloc(sizeof(struct WorkingSetElement));
 		if (activewse == NULL)
-			panic("Cannot allocate copy of WSE");
+			panic("Cannot allocate new WSE");
 
 		activewse->virtual_address = wse->virtual_address;
 		activewse->empty = wse->empty;

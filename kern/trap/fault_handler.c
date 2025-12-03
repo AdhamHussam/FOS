@@ -272,7 +272,90 @@ int get_optimal_num_faults(struct WS_List *initWorkingSet, int maxWSSize, struct
 	//TODO: [PROJECT'25.IM#1] FAULT HANDLER II - #2 get_optimal_num_faults
 	//Your code is here
 	//Comment the following line
-	panic("get_optimal_num_faults() is not implemented yet...!!");
+	//panic("get_optimal_num_faults() is not implemented yet...!!");
+	int faults = 0;
+	//create and copy the initial working set into a new list
+	struct PageRef_List workingSet;
+	LIST_INIT(&workingSet);
+
+	struct WorkingSetElement* wse;
+	LIST_FOREACH_SAFE(wse, (initWorkingSet), WorkingSetElement)
+	{
+	    struct PageRefElement* copy = kmalloc(sizeof(struct PageRefElement));
+	    if (!copy) panic("Cannot allocate PageRefElement");
+
+	    copy->virtual_address = wse->virtual_address;
+	    copy->prev_next_info.le_next = NULL;
+	    copy->prev_next_info.le_prev = NULL;
+
+	    LIST_INSERT_TAIL(&workingSet, copy);
+	}
+	//for every entry in the reference stream
+	//check if the referenced page is in the WS if true do nothing
+	//else select victim and replace and increase faults
+	//the victim is the farthest used page from the current WS
+	//so for every page in the WS get the one with the max reference list index or
+	//if one doesn't exist in the reference stream stop and remove it
+	struct PageRefElement *ref = LIST_FIRST(pageReferences);
+	while (ref != NULL) {
+		bool inWS = 0;
+		struct PageRefElement *workingref ;
+		LIST_FOREACH(workingref, &(workingSet))
+		{
+			if(workingref->virtual_address == ref->virtual_address){
+				inWS = 1;
+				break;
+			}
+		}
+		if(inWS){
+			ref = LIST_NEXT(ref);
+			continue;
+		}
+
+		//not in WS
+		//victim selection get the one with max index in ref list
+		int index = -1;
+		//loop over the current elements in the working set
+		 struct PageRefElement *victimWSElement = NULL;
+		LIST_FOREACH(workingref, &(workingSet))
+		{
+			int curindex = 0;
+			bool found = 0;
+			struct PageRefElement *streamref = LIST_NEXT(ref);//start from the next reference
+			//loop till end or till first appearance
+			while(streamref!=NULL){
+				if(streamref->virtual_address==workingref->virtual_address){
+					//found first appearance
+					found =1;
+					break;
+				}
+				curindex++;
+				streamref= LIST_NEXT(streamref);
+			}
+			if(!found){
+				//doesn't exist in the reference stream anymore so select as victim
+				victimWSElement = workingref;
+				break;
+			}
+			if(curindex > index){
+				index = curindex;
+				victimWSElement = workingref;
+			}
+		}
+		//victim selection done
+		//now remove and add the referenced element
+		struct PageRefElement* refelement = kmalloc(sizeof(struct PageRefElement));
+		refelement->virtual_address = ref->virtual_address;
+		refelement->prev_next_info.le_next = NULL;
+		refelement->prev_next_info.le_prev = NULL;
+		LIST_INSERT_AFTER(&workingSet, victimWSElement, refelement);
+		LIST_REMOVE(&(workingSet),victimWSElement);
+		kfree(victimWSElement);
+		faults++;
+
+		ref = LIST_NEXT(ref);
+	}
+	return faults;
 }
 
 
@@ -316,21 +399,11 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 		pt_set_page_permissions(faulted_env->env_page_directory,fault_va, PERM_PRESENT,0 );
 		//check active list size
 		uint32 wsSize = LIST_SIZE(&(faulted_env->ActiveList));
-		//cprintf("wsSize = %u, ActiveListSize = %u\n", wsSize, faulted_env->page_WS_max_size);
 		if(wsSize < (faulted_env->page_WS_max_size)){
 			//add the new one
 			LIST_INSERT_TAIL(&(faulted_env->ActiveList),wsE);
 		}
 		else{
-			{
-				struct WorkingSetElement *curwse = NULL;
-				cprintf("active working before deletion: ");
-				LIST_FOREACH_SAFE(curwse, &(faulted_env->ActiveList),WorkingSetElement)
-				{
-					cprintf("%08x ", curwse->virtual_address);
-				}
-				cprintf("\n");
-			}
 			//remove all pages from active set , free the working set elements ,set present to 0
 			//add the new one afterwards
 			struct WorkingSetElement *curwse = NULL;
@@ -348,14 +421,7 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 		struct PageRefElement *ref = kmalloc(sizeof(struct PageRefElement));
 		ref->virtual_address =ROUNDDOWN(fault_va, PAGE_SIZE);
 		LIST_INSERT_TAIL(&(faulted_env->referenceStreamList),ref);
-//		struct PageRefElement *cur= NULL;
-//		cprintf("Reference stream: ");
-//		LIST_FOREACH_SAFE(cur, &faulted_env->referenceStreamList, PageRefElement)
-//		{
-//		    cprintf("%08x ", cur->virtual_address);
-//		}
-//
-//		cprintf("\n");
+
 	}
 	else
 	{
