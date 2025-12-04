@@ -696,8 +696,8 @@ void env_set_priority(int envID, int priority)
 	//Your code is here
 	//Comment the following line
 	// panic("env_set_priority() is not implemented yet...!!");
-	
-	struct Env *currEnv;
+#if USE_KHEAP
+	struct Env *currEnv = NULL;
     bool checkperm=0;
     int resp = envid2env(envID,&currEnv,checkperm);
     if(resp==E_BAD_ENV) return; //env not found
@@ -720,13 +720,16 @@ void env_set_priority(int envID, int priority)
         currEnv->priority = priority;
         currEnv->starvation_counter = 0;
     }
+#endif
 }
 void sched_set_starv_thresh(uint32 starvThresh)
 {
 	//TODO: [PROJECT'25.IM#4] CPU SCHEDULING - #1 sched_set_starv_thresh
 	//Your code is here
+#if USE_KHEAP
+	starvation_threshold = starvThresh;
+#endif
 	//Comment the following line
 	// panic("sched_set_starv_thresh() is not implemented yet...!!");
 
-	starvation_threshold = starvThresh;
 }
