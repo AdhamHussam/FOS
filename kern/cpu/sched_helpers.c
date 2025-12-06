@@ -700,10 +700,12 @@ void env_set_priority(int envID, int priority)
 	struct Env *currEnv = NULL;
     bool checkperm=0;
     int resp = envid2env(envID,&currEnv,checkperm);
-    if(resp==E_BAD_ENV) return; //env not found
-    if (currEnv->priority == priority) return; // no need to change
+    if(resp==E_BAD_ENV) return;
+    if (currEnv->priority == priority) return;
+    if (priority < 0 || priority>=num_of_ready_queues){
+           panic("Invalid priority\n");
+       }
 
-    //check if ready
     if(currEnv->env_status==ENV_READY){
         acquire_kspinlock(&ProcessQueues.qlock);
 
