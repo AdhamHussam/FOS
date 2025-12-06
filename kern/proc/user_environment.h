@@ -36,6 +36,7 @@ void switchuvm(struct Env *proc);	//switch to the user virtual memory (TSS & Pro
 void switchkvm(void);				//switch to the kernel virtual memory (Kern Directory)
 void env_start(void);				//called only at the very first scheduling by scheduler()
 void env_exit(void);				//add the running env to the EXIT queue, then reinvoke the scheduler
+void delete_user_kern_stack(struct Env* e);
 
 ///===================================================================================
 //void env_run(struct Env *e) __attribute__((noreturn));

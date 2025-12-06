@@ -519,16 +519,59 @@ void env_free(struct Env *e)
 	//TODO: [PROJECT'25.BONUS#4] EXIT #1 & #2 - env_free
 	//Your code is here
 	//Comment the following line
-	panic("env_free() is not implemented yet...!!");
+	//panic("env_free() is not implemented yet...!!");
 
 	// [1] [NOT REQUIRED] [If BUFFERING is Enabled] Un-buffer any BUFFERED page belong to this environment from the free/modified lists
 	// [2] Free the pages in the PAGE working set from the main memory
+	struct WorkingSetElement *curwse = NULL;
+	LIST_FOREACH_SAFE(curwse, &e->page_WS_list,WorkingSetElement)
+	{
+		LIST_REMOVE(&e->page_WS_list, curwse);
+		unmap_frame(e->env_page_directory, curwse->virtual_address);
+		kfree((void*)curwse);//free the working set element itself , doesn't affect the free frames idk why
+
+	}
+	{
+		// I fill it in the env create for the optimal algorithm so must free
+		struct WorkingSetElement *curwse = NULL;
+		LIST_FOREACH_SAFE(curwse, &e->ActiveList,WorkingSetElement)
+		{
+			LIST_REMOVE(&e->ActiveList, curwse);
+			unmap_frame(e->env_page_directory, curwse->virtual_address);
+			kfree((void*)curwse);
+
+		}
+	}
 	// [3] free the PAGE working set itself from the main memory
+	// isn't it already done in step 2 ??
 	// [4] free the USER HEAP block allocator [if exists]
+	for (uint32 va = USER_HEAP_START; va < USER_HEAP_MAX; va += PAGE_SIZE)
+	{
+		uint32 *page_table = NULL;
+		struct FrameInfo *frameinfo = get_frame_info(e->env_page_directory, va, &page_table);
+		if (frameinfo != NULL)
+		{
+			unmap_frame(e->env_page_directory, va);
+		}
+	}
 	// [5] Free Shared variables [if any]
-	// [6] Free Semaphores [if any]
+	// [6] Free Semaphores [if any]  X
 	// [7] Free all TABLES from the main memory
+	if (e->prepagedVAs != NULL) {
+		kfree(e->prepagedVAs);
+	}
+	uint32 *page_table;
+	    for (uint32 va = USTABDATA; va < USER_LIMIT; va += PTSIZE)
+	    {
+	        int ret = get_page_table(e->env_page_directory, va, &page_table);
+	        if (ret == TABLE_IN_MEMORY)
+	        {
+	            unmap_frame(e->env_page_directory, (uint32)page_table);
+	        }
+	    }
+
 	// [8] free the page DIRECTORY from the main memory
+	kfree((void*)e->env_page_directory);
 	// [9] remove this program from the page file
 	/*(ALREADY DONE for you)*/
 	pf_free_env(e); /*(ALREADY DONE for you)*/ // (removes all of the program pages from the page file)
@@ -537,8 +580,8 @@ void env_free(struct Env *e)
 	/*(ALREADY DONE for you)*/
 	free_environment(e); /*(ALREADY DONE for you)*/ // (frees the environment (returns it back to the free environment list))
 	/*========================*/
+	tlbflush();
 }
-
 //============================
 // 4) PLACE ENV IN EXIT QUEUE:
 //============================
@@ -675,6 +718,10 @@ void sched(void)
 		panic("sched is interruptible!");
 	intena = mycpu()->intena;
 	context_switch(&(p->context), mycpu()->scheduler);
+	if(p->env_status==ENV_FREE )
+	{
+		delete_user_kern_stack(p);
+	}
 	mycpu()->intena = intena;
 }
 
@@ -960,16 +1007,16 @@ void* create_user_kern_stack(uint32* ptr_user_page_directory)
 void delete_user_kern_stack(struct Env* e)
 {
 #if USE_KHEAP
-	//TODO: [PROJECT'25.BONUS#4] EXIT #1 & #2 - delete_user_kern_stack
-	// Write your code here, remove the panic and write your code
-	panic("delete_user_kern_stack() is not implemented yet...!!");
-
-	//Delete the allocated space for the user kernel stack of this process "e"
-	//remember to delete the bottom GUARD PAGE (i.e. not mapped)
-	//NEED TO FIND THE CORRECT PLACE TO CALL IT!
-	//(can't call it in env_free() since the stack is already in use during the function)
+    //TODO: [PROJECT'25.BONUS#4] EXIT #1 & #2 - delete_user_kern_stack
+    // Write your code here, remove the panic and write your code
+    //panic("delete_user_kern_stack() is not implemented yet...!!");
+    //Delete the allocated space for the user kernel stack of this process "e"
+    //remember to delete the bottom GUARD PAGE (i.e. not mapped)
+    //NEED TO FIND THE CORRECT PLACE TO CALL IT!
+    //(can't call it in env_free() since the stack is already in use during the function)
+    kfree((void *)e->kstack);
 #else
-	panic("KERNEL HEAP is OFF! user kernel stack can't be deleted");
+    panic("KERNEL HEAP is OFF! user kernel stack can't be deleted");
 #endif
 }
 

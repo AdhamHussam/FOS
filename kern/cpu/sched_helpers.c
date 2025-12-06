@@ -448,6 +448,7 @@ void sched_kill_env(uint32 envId)
 
 	if (found)
 	{
+		delete_user_kern_stack(ptr_env);
 		env_free(ptr_env);
 		cprintf("[END] DONE\n");
 	}
@@ -570,6 +571,7 @@ void sched_kill_all()
 		{
 			cprintf("	killing[%d] %s...", ptr_env->env_id, ptr_env->prog_name);
 			sched_remove_new(ptr_env);
+			delete_user_kern_stack(ptr_env);
 			env_free(ptr_env);
 			cprintf("DONE\n");
 		}
@@ -588,6 +590,7 @@ void sched_kill_all()
 			{
 				cprintf("	killing[%d] %s...", ptr_env->env_id, ptr_env->prog_name);
 				LIST_REMOVE(&(ProcessQueues.env_ready_queues[i]), ptr_env);
+				delete_user_kern_stack(ptr_env);
 				env_free(ptr_env);
 				cprintf("DONE\n");
 			}
@@ -606,6 +609,7 @@ void sched_kill_all()
 		{
 			cprintf("	killing[%d] %s...", ptr_env->env_id, ptr_env->prog_name);
 			sched_remove_exit(ptr_env);
+			delete_user_kern_stack(ptr_env);
 			env_free(ptr_env);
 			cprintf("DONE\n");
 		}
