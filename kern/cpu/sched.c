@@ -350,7 +350,7 @@ struct Env* fos_scheduler_PRIRR()
 
 #endif
 	return NULL;
-	
+
 }
 
 //========================================
@@ -436,6 +436,6 @@ void update_WS_time_stamps()
         pt_set_page_permissions(env->env_page_directory,wse->virtual_address , 0 , PERM_USED);
     }
 #else
-	
+
 #endif
 }

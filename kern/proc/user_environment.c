@@ -514,7 +514,6 @@ void env_free(struct Env *e)
 	/********DON'T CHANGE THIS LINE***********/
 #if USE_KHEAP //
 	//unshare_pws_at_user_space(e);
-#endif
 	/*****************************************/
 	//TODO: [PROJECT'25.BONUS#4] EXIT #1 & #2 - env_free
 	//Your code is here
@@ -581,6 +580,7 @@ void env_free(struct Env *e)
 	free_environment(e); /*(ALREADY DONE for you)*/ // (frees the environment (returns it back to the free environment list))
 	/*========================*/
 	tlbflush();
+#endif
 }
 //============================
 // 4) PLACE ENV IN EXIT QUEUE:

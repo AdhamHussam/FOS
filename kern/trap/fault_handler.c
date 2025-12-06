@@ -269,11 +269,12 @@ void table_fault_handler(struct Env * curenv, uint32 fault_va)
  */
 int get_optimal_num_faults(struct WS_List *initWorkingSet, int maxWSSize, struct PageRef_List *pageReferences)
 {
+	int faults = 0;
+#if USE_KHEAP
 	//TODO: [PROJECT'25.IM#1] FAULT HANDLER II - #2 get_optimal_num_faults
 	//Your code is here
 	//Comment the following line
 	//panic("get_optimal_num_faults() is not implemented yet...!!");
-	int faults = 0;
 	//create and copy the initial working set into a new list
 	struct PageRef_List workingSet;
 	LIST_INIT(&workingSet);
@@ -355,6 +356,7 @@ int get_optimal_num_faults(struct WS_List *initWorkingSet, int maxWSSize, struct
 
 		ref = LIST_NEXT(ref);
 	}
+#endif
 	return faults;
 }
 
