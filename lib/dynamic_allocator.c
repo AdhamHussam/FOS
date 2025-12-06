@@ -7,6 +7,10 @@
 #include <inc/assert.h>
 #include <inc/string.h>
 #include "../inc/dynamic_allocator.h"
+#ifdef FOS_KERNEL
+#include <kern/conc/ksemaphore.h>
+struct ksemaphore semsem;
+#endif
 
 //==================================================================================//
 //============================== GIVEN FUNCTIONS ===================================//
@@ -38,7 +42,6 @@ __inline__ struct PageInfoElement * to_page_info(uint32 va)
 //==================================================================================//
 //============================ REQUIRED FUNCTIONS ==================================//
 //==================================================================================//
-
 //==================================
 // [1] INITIALIZE DYNAMIC ALLOCATOR:
 //==================================
@@ -79,7 +82,9 @@ void initialize_dynamic_allocator(uint32 daStart, uint32 daEnd)
     for(int i=0;i<free_blk_list_array_size;i++){
         LIST_INIT(&freeBlockLists[i]);
     }
-
+	#ifdef FOS_KERNEL
+    init_ksemaphore(&semsem, 0, "dynalloc_SEMAPHORE");
+	#endif
     //Comment the following line
     //panic("initialize_dynamic_allocator() Not implemented yet");
 
@@ -102,18 +107,8 @@ __inline__ uint32 get_block_size(void *va)
 //===========================
 // 3) ALLOCATE BLOCK:
 //===========================
-void *alloc_block(uint32 size)
+void *alloc_block1(uint32 size)
 {
-    //==================================================================================
-    //DON'T CHANGE THESE LINES==========================================================
-    //==================================================================================
-    {
-        assert(size <= DYN_ALLOC_MAX_BLOCK_SIZE);
-    }
-    //==================================================================================
-    //==================================================================================
-    //TODO: [PROJECT'25.GM#1] DYNAMIC ALLOCATOR - #3 alloc_block
-    //Your code is here
 	uint32 req = size;
 	uint32 nearestPof2 = 8;
 	int idx = 0;
@@ -141,13 +136,13 @@ void *alloc_block(uint32 size)
 		get_page((void*) va);
 		p->block_size = nearestPof2;
 		p->num_of_free_blocks = (PAGE_SIZE / nearestPof2);
-		
+
 		//split page into blocks
 		for (uint32 i = va; i < va + PAGE_SIZE; i += nearestPof2) {
 			struct BlockElement *blockva = (struct BlockElement*) i;
 			LIST_INSERT_TAIL(&freeBlockLists[idx], blockva);
 		}
-		
+
 		LIST_REMOVE(&freePagesList, p);
 		struct BlockElement *b = LIST_FIRST(&freeBlockLists[idx]);
 		p->num_of_free_blocks -= 1;
@@ -169,6 +164,33 @@ void *alloc_block(uint32 size)
 	//found nothing
 	return NULL;
 
+
+}
+
+void *alloc_block(uint32 size)
+{
+	 //==================================================================================
+	//DON'T CHANGE THESE LINES==========================================================
+	//==================================================================================
+	{
+		assert(size <= DYN_ALLOC_MAX_BLOCK_SIZE);
+	}
+	//==================================================================================
+	//==================================================================================
+	//TODO: [PROJECT'25.GM#1] DYNAMIC ALLOCATOR - #3 alloc_block
+	//Your code is here
+	#ifdef FOS_KERNEL
+	while(1)
+	{
+		void* ret = alloc_block1(size);
+		if(ret != NULL)
+			return ret;
+
+		wait_ksemaphore(&semsem);
+	}
+	#else
+	return alloc_block1(size);
+	#endif
     //Comment the following line
     //panic("alloc_block() Not implemented yet");
     //TODO: [PROJECT'25.BONUS#1] DYNAMIC ALLOCATOR - block if no free block
@@ -226,6 +248,10 @@ void free_block(void *va)
 
     return_page((void*)to_page_va(&pageBlockInfoArr[nowPage]));
     }
+
+	#ifdef FOS_KERNEL
+    signal_ksemaphore(&semsem);
+	#endif
 	//Comment the following line
 	//panic("free_block() Not implemented yet");
 }
@@ -258,7 +284,7 @@ void *realloc_block(void* va, uint32 new_size)
 		int dSize;
 		if(sSize < nSize) dSize = sSize;
 		else dSize = nSize;
-		memmove(source,dest,dSize);
+		memmove(dest,source,dSize);
 		free_block(va);
 	}
 

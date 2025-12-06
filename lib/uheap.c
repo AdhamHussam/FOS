@@ -155,7 +155,7 @@ void free(void* virtual_address)
 	//Your code is here
 	//Comment the following line
 	//panic("free() is not implemented yet...!!");
-	if ((uint32)virtual_address >= USER_HEAP_START && (uint32)virtual_address < dynAllocEnd)
+		if ((uint32)virtual_address >= USER_HEAP_START && (uint32)virtual_address < dynAllocEnd)
 	    {
 	        free_block(virtual_address);
 	        return;

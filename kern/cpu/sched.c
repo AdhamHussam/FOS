@@ -348,8 +348,8 @@ struct Env* fos_scheduler_PRIRR()
 		}
 	}
 
-	return NULL;
 #endif
+	return NULL;
 	
 }
 
