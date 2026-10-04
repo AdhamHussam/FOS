@@ -1,4 +1,4 @@
-# 🚀 FOS (Faculty Operating System)
+# 🚀 FOS (FCIS Operating System)
 
 An educational, monolithic x86 32-bit operating system kernel built to explore low-level systems programming, x86 protected mode memory management, preemptive scheduling, IPC, and concurrency primitives.
 
