@@ -1,6 +1,6 @@
 # 🚀 FOS (FCIS Operating System)
 
-An educational, monolithic x86 32-bit operating system kernel built to explore low-level systems programming, x86 protected mode memory management, preemptive scheduling, IPC, and concurrency primitives.
+An educational, monolithic x86 32-bit operating system kernel designed to explore low-level systems programming, x86 protected mode memory management, preemptive scheduling, IPC, and concurrency primitives.
 
 ---
 
@@ -21,7 +21,7 @@ An educational, monolithic x86 32-bit operating system kernel built to explore l
 
 ## 📖 Overview
 
-**FOS** is an educational operating system modeled around x86 architecture principles. It features a modular kernel design covering hardware initialization, virtual memory management with paging, user environments (processes), dynamic heap allocators, synchronization primitives, and custom user programs.
+**FOS** is an educational operating system modeled around x86 architecture principles. It features a modular kernel architecture covering hardware initialization, virtual memory management with paging, user environments (processes), dynamic heap allocators, synchronization primitives, and custom user programs.
 
 ---
 
@@ -29,42 +29,104 @@ An educational, monolithic x86 32-bit operating system kernel built to explore l
 
 - **Bootloader & Protected Mode**: 2-stage loading mechanism switching the CPU from 16-bit real mode into 32-bit protected mode.
 - **Memory Management**:
-  - Multi-level x86 two-tier paging (`boot_memory_manager`, `paging_helpers`).
-  - Kernel and user dynamic memory allocation (`kheap`, `uheap`) with block tracking and BST helpers.
-  - Page file swapping and page fault handling (`fault_handler`, `pagefile_manager`).
-  - Advanced page replacement policies (Clock, Modified Clock, LRU, Optimal).
+  - Two-tier multi-level paging with page table mapping and allocation helpers.
+  - Kernel and user dynamic memory allocation (`kheap`, `uheap`) with block management and BST tracking.
+  - Page fault handling and disk-backed pagefile swapping (`fault_handler`, `pagefile_manager`).
+  - Working set management and page replacement policies (Clock, Modified Clock, LRU, Optimal).
 - **Concurrency & Synchronization**:
-  - Kernel and user spinlocks (`kspinlock`, `uspinlock`).
-  - Counting semaphores and sleeping locks (`sleeplock`, `channel`).
-  - Inter-Process Communication (IPC) via shared memory pages.
+  - Kernel and user-level spinlocks (`kspinlock`, `uspinlock`).
+  - Counting semaphores, sleeplocks, and conditional wake channels (`channel`, `ksemaphore`).
+  - Inter-Process Communication (IPC) using shared memory pages.
 - **Process & CPU Management**:
-  - Process environment abstraction (`user_environment`).
+  - Process environment lifecycle management (`user_environment`).
   - Preemptive and priority-based round-robin scheduling (`sched`, `picirq`, `kclock`).
-  - Syscall interface and trap-frame-based exception/interrupt dispatching.
-- **Interactive Shell & Utilities**:
-  - Integrated kernel monitor / command-line prompt[cite: 1].
-  - Rich userland test suite for memory leaks, sorting algorithms, and concurrency validation[cite: 1].
+  - Trap-frame-based exception handling, hardware interrupts, and system call dispatching.
+- **Interactive Shell & Diagnostics**:
+  - Built-in kernel command-line monitor and readline utility.
+  - Rich suite of user programs and benchmarks for concurrency, sorting, and memory leak detection.
 
 ---
 
 ## 📂 Architecture & Repository Structure
 
 ```text
-├── boot/           # Boot sector code (boot.S, main.c) and disk signing scripts[cite: 1]
-├── inc/            # Core header definitions (mmu.h, trap.h, memlayout.h, syscall.h)[cite: 1]
-├── kern/           # Kernel implementation[cite: 1]
-│   ├── cmd/        # Built-in kernel monitor, readline, and command handlers[cite: 1]
-│   ├── conc/       # Synchronization primitives (spinlocks, semaphores, sleeplocks)[cite: 1]
-│   ├── cons/       # VGA console driver and formatted kernel output[cite: 1]
-│   ├── cpu/        # Context switching, timer (kclock), PIC, and scheduler[cite: 1]
-│   ├── disk/       # IDE/Disk driver and pagefile manager for virtual memory swapping[cite: 1]
-│   ├── mem/        # Boot allocator, paging, kernel heap, and working set management[cite: 1]
-│   ├── proc/       # User environments, process control, and program loading[cite: 1]
-│   ├── tests/      # Kernel-level unit and integration tests[cite: 1]
-│   └── trap/       # Interrupt Descriptor Table (IDT), traps, faults, and syscalls[cite: 1]
-├── lib/            # Shared runtime libraries for kernel and userland (string, printf, uheap)[cite: 1]
-├── user/           # User space applications, benchmarks, and regression tests[cite: 1]
-├── conf/           # Make and environment configuration[cite: 1]
-├── .bochsrc        # Configuration files for Bochs x86 PC emulator[cite: 1]
-└── GNUmakefile     # Main build configuration[cite: 1]
+├── boot/           # Boot sector assembly (boot.S), loader (main.c), and sign tool
+├── inc/            # Core system headers (mmu.h, trap.h, memlayout.h, syscall.h)
+├── kern/           # Kernel space source tree
+│   ├── cmd/        # Built-in kernel shell prompt, readline, and command definitions
+│   ├── conc/       # Synchronization (spinlocks, semaphores, sleeplocks, channels)
+│   ├── cons/       # VGA console driver and kernel printf
+│   ├── cpu/        # Context switching, timer (kclock), PIC, and scheduler
+│   ├── disk/       # IDE disk interface and pagefile manager
+│   ├── mem/        # Boot memory manager, paging, kernel heap, and working set
+│   ├── proc/       # Process environments and program loader
+│   ├── tests/      # Kernel-level unit and integration test routines
+│   └── trap/       # IDT initialization, fault handlers, and system calls
+├── lib/            # Shared runtime C library routines (string, printf, uheap)
+├── user/           # User space applications, benchmarks, and regression tests
+├── conf/           # Make and toolchain configuration files
+├── .bochsrc        # Configuration file for Bochs x86 PC emulation
+└── GNUmakefile     # Top-level GNU build system
 ```
+
+---
+
+## 🛠 Prerequisites & Toolchain
+
+```bash
+# Ubuntu / Debian
+sudo apt-get update
+sudo apt-get install -y build-essential gcc-multilib g++-multilib gdb bochs bochs-x perl
+
+# Fedora
+sudo dnf install -y gcc glibc-devel.i686 libgcc.i686 gdb bochs perl make
+```
+
+---
+
+## 🚀 Getting Started
+
+### Building the Kernel
+
+```bash
+make clean
+make
+```
+
+### Running with Bochs
+
+```bash
+# On Linux / macOS
+bochs -f .bochsrc -q
+
+# On Windows
+bochscon.bat
+```
+
+### Debugging with GDB
+
+```bash
+# Terminal 1: Start Bochs with debug stub
+bochs -f .bochsrc-debug
+
+# Terminal 2: Attach GDB
+gdb -x .gdbinit
+```
+
+---
+
+## 🧪 Testing Suite
+
+| Test Category | Target Files | Description |
+| --- | --- | --- |
+| Virtual Memory | `tst_page_replacement_*`, `tst_placement.c` | Verifies page fault handling and page replacement algorithms (Clock, LRU, Optimal). |
+| Dynamic Memory | `tst_malloc_*`, `tst_free_*`, `ef_mergesort_leakage.c` | Checks user and kernel heap behavior, leak detection, and fragmentation handling. |
+| Memory Sharing | `ef_tst_sharing_*`, `tst_sharing_*` | Tests cross-process shared memory regions and write protection flags. |
+| Synchronization | `tst_ksemaphore_*`, `tst_sleeplock_*`, `tst_air.c` | Evaluates mutual exclusion, semaphores, and concurrency hazards. |
+| Scheduling | `test_scheduler.c`, `priRR_fib*` | Validates preemptive priority round-robin execution and process switches. |
+
+---
+
+## 📄 License & Acknowledgments
+
+This project is derived from the MIT JOS educational operating system framework and adapted for university operating system laboratory coursework and system programming instruction.
